@@ -149,7 +149,9 @@ class KPIStorytellingEngine:
         )
 
         # Determine primary driver and applied security label
-        primary_driver = surviving_evidence[0] if surviving_evidence else caged_nodes[0]
+        # Filter out Mock FAISS historical nodes to show the actual scenario driver
+        real_drivers = [n for n in surviving_evidence if "HIST" not in n.node_id]
+        primary_driver = real_drivers[0] if real_drivers else (surviving_evidence[0] if surviving_evidence else caged_nodes[0])
         top_weight = scored_nodes[0][1] if scored_nodes else 0.95
 
         sec_label = "PUBLIC_UNRESTRICTED"
@@ -238,25 +240,35 @@ class KPIStorytellingEngine:
             requires_shadow_run=requires_shadow_run
         )
 
+        financial_impact = float(context.get("financial_impact_usd", approved_proposal.get("estimated_cost_usd", 0.0) * 1.5))
+        risk_level = "HIGH RISK" if anchor.z_score > 5.0 else "MEDIUM RISK"
+
         exec_view = ExecutiveViewBlock(
-            financial_impact_usd=float(approved_proposal.get("estimated_cost_usd", 0.0)) * 1.5,
-            business_risk_level="MEDIUM",
+            financial_impact_usd=financial_impact,
+            business_risk_level=risk_level,
             recommended_actions=[rec_action]
         )
 
+        # Make Engineer and Ops Views dynamic based on the actual driver and context
+        raw_cause = primary_driver.content if not primary_driver.is_masked else primary_driver.title
+        tech_root_cause = f"AI identified {raw_cause[:50]}... via {approved_proposal.get('source_layer', 'Swarm')}"
+        
+        target_env = context.get("target_environment", "production-cluster")
+        playbook_cmd = f"helm rollback {anchor.dimensions.get('domain', 'service')} --force" if "Stripe" in raw_cause else f"kubectl scale --replicas=5 deployment/{anchor.dimensions.get('category', 'app')}"
+
         eng_view = EngineerViewBlock(
-            technical_root_cause=f"AI identified cause via {approved_proposal.get('source_layer', 'Swarm')}",
-            system_logs=["[WARN] Latency spike detected", "[INFO] Swarm active"],
+            technical_root_cause=tech_root_cause,
+            system_logs=[f"[WARN] Anomaly in {anchor.metric_name}", f"[INFO] Swarm active on {primary_driver.node_id}"],
             execution_playbook=ExecutionPlaybookBlock(
-                command="apply_mitigation --force",
-                target_environment="prod"
+                command=playbook_cmd,
+                target_environment=target_env
             )
         )
 
         ops_view = OpsViewBlock(
-            operational_bottleneck="Mitigation required",
-            sla_impact="Potential 5% SLA drop if ignored",
-            mitigation_steps=[approved_proposal.get("action", "No action")]
+            operational_bottleneck=f"Mitigation required for {anchor.metric_name} variance",
+            sla_impact=f"Potential {abs(anchor.variance_pct):.1f}% SLA drop if ignored",
+            mitigation_steps=[approved_proposal.get("action", "Manual investigation required")]
         )
 
         master_payload = UnifiedMasterPayload(

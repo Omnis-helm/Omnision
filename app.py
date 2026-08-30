@@ -12,5 +12,7 @@ ROOT_DIR = Path(__file__).resolve().parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-# Import and execute the main dashboard
-from kpi_engine.ui.streamlit_app import *
+import runpy
+
+# Execute the main dashboard script properly on every rerun
+runpy.run_path(str(ROOT_DIR / "kpi_engine" / "ui" / "streamlit_app.py"), run_name="__main__")

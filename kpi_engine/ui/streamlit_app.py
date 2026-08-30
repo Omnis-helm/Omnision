@@ -26,64 +26,12 @@ from kpi_engine.governor.schemas import UnifiedMasterPayload
 
 st.set_page_config(
     page_title="Omnision — KPI Storytelling Engine",
-    page_icon="⚡",
+    page_icon=":material/bolt:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# Custom CSS for executive polish
-st.markdown("""
-<style>
-    .omnision-header {
-        font-size: 2.3rem;
-        font-weight: 800;
-        background: linear-gradient(90deg, #1E40AF 0%, #3B82F6 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0.1rem;
-    }
-    .omnision-sub {
-        font-size: 1.05rem;
-        color: #64748B;
-        margin-bottom: 1.2rem;
-    }
-    .card-box {
-        background-color: #F8FAFC;
-        border: 1px solid #E2E8F0;
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 12px;
-    }
-    .badge-high {
-        background-color: #FEE2E2;
-        color: #991B1B;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-weight: 600;
-    }
-    .badge-approved {
-        background-color: #DCFCE7;
-        color: #166534;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-weight: 600;
-    }
-    .badge-vp {
-        background-color: #FEF9C3;
-        color: #854D0E;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-weight: 600;
-    }
-    .badge-discarded {
-        background-color: #F3F4F6;
-        color: #4B5563;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-weight: 600;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Custom CSS removed in favor of native config.toml theming
 
 # Initialize Singleton Engine in Session State
 if "engine" not in st.session_state:
@@ -92,7 +40,7 @@ if "engine" not in st.session_state:
 engine: KPIStorytellingEngine = st.session_state.engine
 
 # Sidebar Configuration
-st.sidebar.markdown("## ⚡ Omnision Control Center")
+st.sidebar.markdown("## :material/bolt: Omnision control center")
 st.sidebar.markdown("**Unified Architecture Compendium v3.0**")
 
 scenario_options = {
@@ -118,7 +66,6 @@ role_options = {
 selected_role_name = st.sidebar.selectbox(
     "Active User Clearance / Persona",
     options=list(role_options.keys()),
-    index=0,
     key="omnision_role_selector",
 )
 active_role = role_options[selected_role_name]
@@ -126,17 +73,14 @@ active_role = role_options[selected_role_name]
 force_refresh = st.sidebar.checkbox("Bypass Semantic Cache (Force Fresh Inference)", value=False)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("📊 Fleet Telemetry & Memory")
+st.sidebar.subheader(":material/monitoring: Fleet telemetry & memory")
 st.sidebar.metric("Cumulative Tokens Consumed", f"{engine.supervisor.cumulative_token_spend:,}")
 st.sidebar.metric("Semantic Cached Payloads", f"{len(engine.supervisor.semantic_cache)}")
 st.sidebar.metric("Active Layer 1 Playbooks", f"{len(engine.layers_store.layer_1_playbooks)}")
 
 # Main Header
-st.markdown('<div class="omnision-header">Omnision</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="omnision-sub">Autonomous Root-Cause Diagnosis · Multivariate Causal Inference · Multi-Agent Governance · Continuous Learning</div>',
-    unsafe_allow_html=True,
-)
+st.title("Omnision")
+st.caption("Autonomous Root-Cause Diagnosis · Multivariate Causal Inference · Multi-Agent Governance · Continuous Learning")
 
 # Execute Pipeline Safely
 result = engine.run_pipeline(
@@ -158,9 +102,10 @@ if result.get("status") == "ABSTAINED":
         * Your active role (`""" + selected_role_name + """`) lacks `EXECUTIVE_VP` clearance.
         * Under Omnision's mathematical integrity rules, rather than hallucinating a false secondary cause or presenting an incomplete equation, the engine **gracefully abstains**.
         """)
-        if st.button("🔓 Elevate Clearance to EXECUTIVE_VP", type="primary"):
+        def elevate_clearance():
             st.session_state["omnision_role_selector"] = "EXECUTIVE_VP"
-            st.rerun()
+            
+        st.button("🔓 Elevate Clearance to EXECUTIVE_VP", type="primary", on_click=elevate_clearance)
 
     with col_s2:
         st.markdown("### 🔒 Security Audit Receipt")
@@ -179,6 +124,17 @@ else:
     discarded_noise = result.get("discarded_noise", [])
 
     # Top KPI Metrics Strip
+    st.html("""
+    <style>
+    [data-testid="stMetricValue"] > div,
+    [data-testid="stMetricLabel"] > div {
+        font-size: 1.1rem !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        line-height: 1.2 !important;
+    }
+    </style>
+    """)
     col_a, col_b, col_c, col_d, col_e = st.columns(5)
     with col_a:
         st.metric("Anchor Metric", anchor.kpi_id)
@@ -195,29 +151,28 @@ else:
 
     # Main Tab Navigation
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "📊 Executive Narrative",
-        "🔍 Causal DAG & Math Proofs",
-        "🛠️ DevOps & Operations View",
-        "🚀 Blue-Sky Challenger & Solutions",
-        "🧠 Human RCA Override Sandbox",
-        "📈 Telemetry & Learning Loop",
+        ":material/summarize: Executive narrative",
+        ":material/account_tree: Causal DAG & math proofs",
+        ":material/terminal: DevOps & operations view",
+        ":material/rocket_launch: Blue-sky challenger & solutions",
+        ":material/psychology: Human RCA override sandbox",
+        ":material/insights: Telemetry & learning loop",
     ])
 
     # ==================== TAB 1: EXECUTIVE VIEW ====================
     with tab1:
-        st.subheader("👔 Executive Decision Brief")
+        st.subheader(":material/assignment_ind: Executive decision brief")
         
         col1, col2, col3 = st.columns(3)
         with col1:
             st.markdown(f"**Financial Exposure:** `${master.executive_view.financial_impact_usd:,.2f} USD`")
         with col2:
-            risk_badge = f'<span class="badge-high">{master.executive_view.business_risk_level} RISK</span>'
-            st.markdown(f"**Business Risk Rating:** {risk_badge}", unsafe_allow_html=True)
+            st.markdown(f"**Business Risk Rating:** :red-badge[{master.executive_view.business_risk_level} RISK]")
         with col3:
             st.markdown(f"**Primary Driver:** `{master.anchor_reference.primary_driver}`")
             st.caption(f"Causal Weight: **{master.anchor_reference.causal_weight:.2f}** | Security: `{master.anchor_reference.security_applied}`")
 
-        st.markdown("### 📋 Governed Action Recommendations")
+        st.subheader(":material/rule: Governed action recommendations")
         st.caption("Cross-examined by The Critic against technical levers, SLA limits, and RACI budget ceilings.")
 
         if master.executive_view.recommended_actions:
@@ -233,26 +188,35 @@ else:
                         st.write(f"**Time-to-Impact:** `{action.time_to_impact_minutes} mins`")
                     with c3:
                         st.write(f"**RACI Owner:** `{action.raci_owner}`")
-                        status_html = f'<span class="badge-approved">{action.approval_status}</span>' if action.approval_status == "AUTO_APPROVED" else f'<span class="badge-vp">{action.approval_status}</span>'
-                        st.markdown(f"**Approval Status:** {status_html}", unsafe_allow_html=True)
+                        if "action_status" not in st.session_state:
+                            st.session_state["action_status"] = {}
+                        current_status = st.session_state["action_status"].get(action.action_id, action.approval_status)
+                        st.markdown(f"**Approval Status:**")
+                        badge_color = "orange"
+                        if current_status == "APPROVED": badge_color = "green"
+                        elif current_status == "REJECTED": badge_color = "red"
+                        
+                        st.markdown(f":{badge_color}-badge[{current_status}]")
                     with c4:
                         st.write("**Continuous Learning Feedback:**")
+                        def set_approval_status(a_id, layer, status):
+                            st.session_state["action_status"][a_id] = status
+                            engine.trust_tuner.record_feedback(a_id, layer, "ACCEPT" if status == "APPROVED" else "REJECT")
+                            
                         fb_col1, fb_col2 = st.columns(2)
                         with fb_col1:
-                            if st.button("✅ Accept", key=f"btn_acc_{action.action_id}_{i}"):
-                                rec = engine.trust_tuner.record_feedback(action.action_id, action.source_layer or "", "ACCEPT")
-                                st.success(f"Trust boosted to {rec['new_weight']:.4f}")
+                            st.button(":material/check_circle: Accept", key=f"btn_acc_{action.action_id}_{i}", 
+                                      on_click=set_approval_status, args=(action.action_id, action.source_layer or "", "APPROVED"))
                         with fb_col2:
-                            if st.button("❌ Reject", key=f"btn_rej_{action.action_id}_{i}"):
-                                rec = engine.trust_tuner.record_feedback(action.action_id, action.source_layer or "", "REJECT")
-                                st.error(f"Trust decayed to {rec['new_weight']:.4f}")
-                    st.divider()
+                            st.button(":material/cancel: Reject", key=f"btn_rej_{action.action_id}_{i}", 
+                                      on_click=set_approval_status, args=(action.action_id, action.source_layer or "", "REJECTED"))
+                    st.write("")
         else:
             st.info("No approved actions generated.")
 
     # ==================== TAB 2: CAUSAL DAG & MATH PROOFS ====================
     with tab2:
-        st.subheader("🔍 Localized Causal DAG & Mathematical Proofs")
+        st.subheader(":material/account_tree: Localized causal DAG & mathematical proofs")
         st.caption("Just-in-Time Graph-RAG: Bounded by The Cage ([-48h, +12h]), max 2 hops, and threshold pruning (W ≥ 0.65).")
 
         fig = go.Figure()
@@ -303,9 +267,9 @@ else:
             yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
             plot_bgcolor="#F8FAFC",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
-        st.markdown("### 🧮 Causal Scoring Decomposition Table")
+        st.subheader(":material/calculate: Causal scoring decomposition table")
         df_rows = []
         for item in scored_nodes:
             node, w, cr, ci, tier, details = item
@@ -318,20 +282,20 @@ else:
                 "Counterfactual Tier": tier,
                 "Status": "Surviving Evidence (W ≥ 0.65)" if w >= 0.65 else "Discarded Noise (W < 0.65)",
             })
-        st.dataframe(pd.DataFrame(df_rows), use_container_width=True)
+        st.dataframe(pd.DataFrame(df_rows), width='stretch')
 
         if selected_scenario_id == "SCENARIO_2_MULTIVARIATE_DAG_SHAP":
-            st.markdown("#### 📐 Multivariate DAG Interaction Math (§2.5.3, §5.3.4)")
+            st.markdown("#### :material/architecture: Multivariate DAG interaction math (§2.5.3, §5.3.4)")
             st.latex(r"\Delta R = P \cdot \Delta V + V \cdot \Delta P + \Delta P \cdot \Delta V")
             st.info("Price Effect: -$28,000.00 | Volume Effect: -$21,740.00 | Joint Interaction: +$1,739.20 | Total ΔR = -$48,000.80")
 
     # ==================== TAB 3: DEVOPS & OPERATIONS VIEW ====================
     with tab3:
-        st.subheader("🛠️ Federated DevOps & Operations View")
+        st.subheader(":material/terminal: Federated DevOps & operations view")
 
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("### 🖥️ Engineer View (Technical Playbook)")
+            st.markdown("### :material/engineering: Engineer view (Technical playbook)")
             st.write(f"**Technical Root Cause:** `{master.engineer_view.technical_root_cause}`")
             st.write(f"**Target Environment:** `{master.engineer_view.execution_playbook.target_environment}`")
             st.code(master.engineer_view.execution_playbook.command, language="bash")
@@ -340,7 +304,7 @@ else:
                 st.caption(f"• `{log}`")
 
         with col2:
-            st.markdown("### ⚙️ Operations View (SLA & Routing)")
+            st.markdown("### :material/settings: Operations view (SLA & routing)")
             if master.ops_view:
                 st.write(f"**Operational Bottleneck:** {master.ops_view.operational_bottleneck}")
                 st.write(f"**SLA Impact:** {master.ops_view.sla_impact}")
@@ -350,7 +314,7 @@ else:
 
     # ==================== TAB 4: BLUE-SKY CHALLENGER & SOLUTIONS ====================
     with tab4:
-        st.subheader("🚀 Blue-Sky LLM Challenger & Solution Network (§3.2, §8)")
+        st.subheader(":material/rocket_launch: Blue-sky LLM challenger & solution network (§3.2, §8)")
         st.markdown("""
         Omnision executes two parallel prompt channels simultaneously to expand ideas:
         * **Channel A (Grounded Path):** Resolves the incident strictly using internal SOPs, runbooks, and active operational levers.
@@ -360,7 +324,7 @@ else:
 
         col_ch1, col_ch2 = st.columns(2)
         with col_ch1:
-            st.markdown("### 🛡️ Channel A: Grounded Solutions")
+            st.markdown("### :material/shield: Channel A: Grounded solutions")
             grounded_actions = [a for a in master.executive_view.recommended_actions if "Challenger" not in a.source_layer]
             if grounded_actions:
                 for a in grounded_actions:
@@ -369,7 +333,7 @@ else:
                 st.info("No grounded actions generated.")
 
         with col_ch2:
-            st.markdown("### 💡 Channel B: Blue-Sky Challenger Solutions")
+            st.markdown("### :material/lightbulb: Channel B: Blue-sky challenger solutions")
             challenger_actions = [a for a in master.executive_view.recommended_actions if "Challenger" in a.source_layer]
             if challenger_actions:
                 for a in challenger_actions:
@@ -384,7 +348,7 @@ else:
 
     # ==================== TAB 5: HUMAN RCA OVERRIDE SANDBOX ====================
     with tab5:
-        st.subheader("🧠 Human-in-the-Loop RCA Override & Supervisor Invalidation Cascade")
+        st.subheader(":material/psychology: Human-in-the-loop RCA override & supervisor invalidation cascade")
         st.markdown("Auditing foundational diagnostic math: Demote incorrect causes, promote alternative evidence, or inject domain knowledge.")
 
         override_type = st.radio("Override Strategy", ["Select from Discarded Noise", "Inject Brand New Root Cause"], key="rca_strat_rad")
@@ -395,7 +359,7 @@ else:
             if discarded_noise:
                 noise_options = {n.node_id: f"{n.node_id}: {n.title}" for n in discarded_noise}
                 selected_noise_id = st.selectbox("Promote Discarded Node to Primary Driver", options=list(noise_options.keys()), format_func=lambda x: noise_options[x])
-                if st.button("🚀 Trigger Invalidation Cascade & Recalibrate", type="primary"):
+                if st.button(":material/rocket_launch: Trigger invalidation cascade & recalibrate", type="primary"):
                     res = engine.handle_human_rca_override(
                         scenario_id=selected_scenario_id,
                         demoted_node_id=primary_node_id,
@@ -408,7 +372,7 @@ else:
                 st.info("No discarded noise nodes in this scenario to promote.")
         else:
             custom_rca = st.text_area("Custom Root Cause Diagnosis", value="Critical connection pool saturation on database cluster db-primary-01")
-            if st.button("🚀 Inject Verified Cause & Regenerate Governed Actions", type="primary"):
+            if st.button(":material/rocket_launch: Inject verified cause & regenerate governed actions", type="primary"):
                 res = engine.handle_human_rca_override(
                     scenario_id=selected_scenario_id,
                     demoted_node_id=primary_node_id,
@@ -420,7 +384,7 @@ else:
 
     # ==================== TAB 6: TELEMETRY & CONTINUOUS LEARNING ====================
     with tab6:
-        st.subheader("📈 LLM Economics, Telemetry & Continuous Learning Loop")
+        st.subheader(":material/insights: LLM economics, telemetry & continuous learning loop")
 
         m1, m2, m3, m4 = st.columns(4)
         with m1:
@@ -432,13 +396,13 @@ else:
         with m4:
             st.metric("Semantic Cache Status", "HIT (0ms / $0)" if master.runtime_metadata.cache_hit else "MISS (Live LLM)")
 
-        st.markdown("### 🤖 Model Confidence Trust Weights ($W_m$)")
+        st.markdown("### :material/smart_toy: Model confidence trust weights ($W_m$)")
         st.caption("Dynamically tuned via user feedback signals: W_m^(t+1) = W_m^(t) * (1 - η) on repeated rejections.")
         st.bar_chart(pd.DataFrame(list(engine.supervisor.swarm.model_weights.items()), columns=["Agent Model", "Trust Weight Wm"]).set_index("Agent Model"))
 
-        st.markdown("### 📝 Dynamic Playbook Appends (Layer 1 Ingestion)")
+        st.markdown("### :material/history_edu: Dynamic playbook appends (Layer 1 ingestion)")
         st.caption("Real-world engineer execution deltas captured and ingested into institutional memory.")
-        with st.expander("➕ Test Dynamic Playbook Append"):
+        with st.expander("Test dynamic playbook append", icon=":material/add:"):
             mod_act = st.text_input("Modified Action", "Roll back Stripe v4.1 gateway integration AND flush Redis cache")
             mod_cmd = st.text_input("Modified Command", "helm rollback stripe-gateway 4.0 && redis-cli FLUSHALL")
             if st.button("Ingest Human Delta into Layer 1"):

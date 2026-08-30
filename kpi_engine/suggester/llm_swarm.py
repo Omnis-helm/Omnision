@@ -56,14 +56,17 @@ def swarm_agent_node(state: AgentState) -> Dict[str, Any]:
             content = content.split("```json")[1].split("```")[0]
         proposal = json.loads(content)
         
-        # Ensure it has an ID
-        proposal["action_id"] = f"ACT-SWARM-{str(uuid.uuid4())[:8].upper()}"
+        import hashlib
+        action_hash = hashlib.md5(proposal.get("action", "fallback").encode()).hexdigest()[:8].upper()
+        proposal["action_id"] = f"ACT-SWARM-{action_hash}"
         if "critic_verdict" not in proposal:
             proposal["critic_verdict"] = "PENDING_SUPERVISOR"
             
     except Exception as e:
+        import hashlib
+        err_hash = hashlib.md5(str(e).encode()).hexdigest()[:8].upper()
         proposal = {
-            "action_id": f"ACT-ERR-{str(uuid.uuid4())[:8].upper()}",
+            "action_id": f"ACT-ERR-{err_hash}",
             "action": "Fallback: Error parsing LLM JSON",
             "source_layer": "Error Handling",
             "estimated_cost_usd": 0.0,

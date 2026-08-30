@@ -19,7 +19,7 @@ class SystemConfig(BaseModel):
     cage_pre_hours: int = 48
     cage_post_hours: int = 12
     max_traversal_hops: int = 2
-    edge_prune_weight_threshold: float = 0.65
+    edge_prune_weight_threshold: float = 0.50
 
     # Causal Weighting parameters (§2.5, §5)
     # Contextual Relevance weights: W = alpha*Wt + beta*We + gamma*Ws
