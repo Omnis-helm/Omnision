@@ -15,10 +15,24 @@ def _generate_proposal(state: AgentState, llm_provider: str, persona: str, layer
     evidence = state.get("causal_evidence", [])
     feedback = state.get("supervisor_feedback", "")
     
+    # --- DYNAMIC EXTERNAL WEB INTELLIGENCE AGENT (FinBERT) ---
+    web_intelligence = ""
+    if len(evidence) <= 1:
+        try:
+            from kpi_engine.governor.external_tools import WebIntelligenceTools
+            web_agent = WebIntelligenceTools()
+            ticker = "AAPL" # Hardcoded proxy for demo purposes
+            news = f"Tech sector crashes as gateway outages spook investors regarding {anchor.get('metric_name', 'System')}."
+            report = web_agent.analyze_macro_event(ticker, news)
+            web_intelligence = f"\n\n[External Web Agent Report]:\n{report['synthesis']}\n"
+        except Exception as e:
+            web_intelligence = f"\n\n[External Web Agent Failed]: {str(e)}\n"
+
     prompt = (
         f"You are the {persona}.\n"
         f"KPI Impacted: {anchor.get('metric_name', 'Unknown')}\n"
         f"Primary Driver: {evidence[0].get('content', 'Unknown') if evidence else 'Unknown'}\n"
+        f"{web_intelligence}"
         f"Generate a robust operational JSON solution.\n"
         f"Required keys: action, source_layer, estimated_cost_usd, time_to_impact_minutes, raci_owner, approval_status.\n"
     )
@@ -84,3 +98,4 @@ def blue_sky_node(state: AgentState) -> Dict[str, Any]:
         "proposals": proposals,
         "tokens_consumed": state.get("tokens_consumed", 0) + 500
     }
+

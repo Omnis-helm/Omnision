@@ -1,4 +1,4 @@
-import os
+﻿import os
 import requests
 import logging
 from typing import Dict, Any
@@ -17,7 +17,7 @@ class WebIntelligenceTools:
     """Ensemble tools for the External Web Intelligence Agent."""
     
     def __init__(self):
-        self.hf_token = os.getenv("HF_TOKEN")
+        from kpi_engine.config import CONFIG`n        self.hf_token = os.getenv("HF_TOKEN", getattr(CONFIG, "huggingface_api_key", ""))
         self.finbert_url = "https://api-inference.huggingface.co/models/ProsusAI/finbert"
 
     def fetch_market_data(self, ticker: str = "WMT") -> Dict[str, Any]:
@@ -99,3 +99,4 @@ class WebIntelligenceTools:
             "finbert_tensor": finbert_tensor,
             "llm_synthesis": synthesis
         }
+
