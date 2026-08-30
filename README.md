@@ -1,4 +1,4 @@
-﻿# ⚡ Omnision: Autonomous KPI Storytelling & Causal Governance Engine
+# ⚡ Omnision: Autonomous KPI Storytelling & Causal Governance Engine
 
 ![Version](https://img.shields.io/badge/version-3.0%20(v2.0%20Extended)-blue.svg)
 ![Status](https://img.shields.io/badge/status-Production%20Ready-success.svg)
@@ -95,17 +95,16 @@ Omnision supports OpenAI, Anthropic, Gemini, and local Ollama models.
 You must configure your API keys in **`kpi_engine/config.py`**. 
 
 1. Open `kpi_engine/config.py` in your code editor.
-2. Locate the `Config` dataclass at the top of the file.
+2. Locate the `SystemConfig` class at the bottom of the file.
 3. Paste your specific keys exactly between the quotation marks.
 
 ```python
-@dataclass
-class Config:
+class SystemConfig(BaseModel):
     # 🔑 PASTE YOUR API KEYS HERE:
     openai_api_key: str = "sk-..." 
     anthropic_api_key: str = "sk-ant-..."
-    google_api_key: str = ".\.\."
-    huggingface_api_key: str = ".\.\."  # Required ONLY if using FinBERT Web Agent
+    google_api_key: str = "..."
+    huggingface_api_key: str = "..."  # Required ONLY if using FinBERT Web Agent
     
     # 🦙 OLLAMA SETTINGS (For 100% Private Data)
     ollama_base_url: str = "http://localhost:11434"
