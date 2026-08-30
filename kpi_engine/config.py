@@ -49,7 +49,8 @@ class SystemConfig(BaseModel):
     llm_provider: str = "mock"  # options: 'openai', 'anthropic', 'gemini', 'ollama', 'mock'
     openai_api_key: str = ""
     anthropic_api_key: str = ""
-    google_api_key: str = ""
+    google_api_key: str = "
+    huggingface_api_key: str = ""
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3"
     swarm_max_iterations: int = 3
@@ -57,4 +58,5 @@ class SystemConfig(BaseModel):
 
 # Global configuration instance
 CONFIG = SystemConfig()
+
 

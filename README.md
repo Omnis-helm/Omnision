@@ -104,7 +104,8 @@ class Config:
     # 🔑 PASTE YOUR API KEYS HERE:
     openai_api_key: str = "sk-..." 
     anthropic_api_key: str = "sk-ant-..."
-    google_api_key: str = "..."
+    google_api_key: str = ".\.\."
+    huggingface_api_key: str = ".\.\."  # Required ONLY if using FinBERT Web Agent
     
     # 🦙 OLLAMA SETTINGS (For 100% Private Data)
     ollama_base_url: str = "http://localhost:11434"
@@ -146,3 +147,4 @@ To prevent the AI from giving generic advice, you must teach it your company's s
 
 ### Step 5: Start the LangGraph Orchestrator
 Once your keys and KPIs are wired up, you can start the dashboard using `streamlit run app.py` and manage your operations entirely autonomously.
+
