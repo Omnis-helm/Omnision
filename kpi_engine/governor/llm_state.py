@@ -1,4 +1,4 @@
-"""
+﻿"""
 TypedDict representing the State of the LangGraph execution.
 """
 
@@ -9,6 +9,10 @@ class AgentState(TypedDict):
     anchor_context: Dict[str, Any]
     causal_evidence: List[Dict[str, Any]]
     context: Dict[str, Any]
+    
+    # LLM Providers
+    primary_llm_provider: str
+    bluesky_llm_provider: str
     
     # Swarm outputs
     proposals: List[Dict[str, Any]]

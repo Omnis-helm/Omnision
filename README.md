@@ -1,79 +1,70 @@
-# Omnision: Autonomous KPI Storytelling Engine
-**Accenture Innovation Challenge 2026 - Round 2 Prototype Development**
-**Problem Track 3:** `BusinessIntelligence.ai`
+﻿# ðŸ‘ï¸ Omnision: Autonomous KPI Storytelling & Causal Governance Engine
+
+![Version](https://img.shields.io/badge/version-3.0%20(v2.0%20Extended)-blue.svg)
+![Status](https://img.shields.io/badge/status-Production%20Ready-success.svg)
+![Architecture](https://img.shields.io/badge/Architecture-Neuro--Symbolic-purple.svg)
+
+**Omnision** is an enterprise-grade autonomous, closed-loop technical architecture that resolves business KPI anomalies. It drives incidents from **Shallow Detection** to **Causal Diagnosis**, **Multi-Layered Solution Synthesis**, **Multi-Agent Governance**, and **Closed-Loop Continuous Learning**.
 
 ---
 
-## 📄 Detailed Business Proposal
+## ðŸ’¡ The What, Why, and How
 
-### 1. Problem Framing
-Modern enterprises track KPIs across fragmented systems with different refresh cadences and granularities. When a critical metric drops, the "right" explanation often depends on who is asking. Furthermore, applying raw Generative AI to this problem introduces massive risk: hallucinations erode stakeholder trust, and unconstrained LLMs can easily leak highly classified M&A or financial data to unauthorized employees. Companies don't need a chatbot that talks about data—they need an engine that *governs* data, mathematically proves causation, and translates telemetry into persona-specific, actionable business levers.
+### What is Omnision?
+Omnision is a self-governing analytics pipeline. Traditional dashboards (like Tableau or Datadog) simply tell you that a metric is broken. Omnision autonomously investigates *why* it broke, scopes the blast radius, enforces enterprise data security, and deploys a multi-agent LLM swarm to generate a mathematically sound, budget-constrained mitigation plan.
 
-### 2. Solution Design: The "Neuro-Symbolic Cage"
-Omnision is a self-governing, multi-agent analytics engine. It intentionally avoids passing raw data directly to Large Language Models (LLMs). Instead, it uses deterministic data science (Z-scores, SHAP values, Directed Acyclic Graphs) to build a tightly constrained "cage" of evidence. Only this heavily vetted, mathematically verified causal graph is passed to the LLM swarm, virtually eliminating hallucinations and ensuring recommendations are bounded by strict financial and operational constraints.
-
-### 3. Target Users (Role-Based Personas)
-Omnision dynamically alters its causal math and narrative output based on the clearance of the user:
-* **Executive VP (Tier 1 Clearance):** Receives unrestricted access to highly sensitive strategic drivers (e.g., confidential M&A restructuring costs, HR actions) with full financial exposure numbers.
-* **Senior Engineer (Tier 2 Clearance):** Receives full system logs and technical playbooks, but absolute financial values are mathematically masked (`<REDACTED_DOLLAR_VALUE>`) to prevent insider trading risks.
-* **Junior Analyst (Standard Clearance):** Receives basic operational drivers. If a root cause is determined to be highly classified, the system gracefully abstains from answering rather than hallucinating a fake reason.
-
-### 4. Business Case & Impact
-* **Eliminates Alert Fatigue:** "Super-Anchor" clustering merges dozens of downstream system alerts into a single Root Cause narrative.
-* **Slashing RCA Time:** Reduces Root Cause Analysis (RCA) from days of cross-departmental war rooms to seconds of automated swarm analysis.
-* **Compute Cost Reduction:** By using deterministic math (FAISS, SHAP) to prune the evidence pool *before* LLM generation, token consumption is reduced by over 80% compared to brute-force RAG approaches.
-
-### 5. Phased Roadmap
-1. **Phase 1: Proof of Concept (Current Prototype):** Simulated telemetry, deterministic causal scoring, LangGraph agent swarm, and Streamlit executive dashboard.
-2. **Phase 2: Live Integration (Next 6 Months):** Connect to Snowflake/Databricks for live telemetry ingestion. Replace regex-based security with formal integrations (Microsoft Presidio for PII, NVIDIA NeMo for Guardrails).
-3. **Phase 3: Autonomous Remediation (Year 1+):** Transition from "Human-in-the-loop" to "Human-on-the-loop," allowing the Playbook Agent to automatically execute self-healing bash/Kubernetes scripts for low-risk operational anomalies.
-
-### 6. Key Risks & Mitigations
-* **Risk: LLM Hallucination.** *Mitigation:* The "Neuro-Symbolic Cage." The LLM is forced to cite nodes from the verified DAG. It cannot invent external drivers.
-* **Risk: Action Unpredictability.** *Mitigation:* "The Critic." An independent deterministic supervisor cross-examines every LLM proposal against hardcoded budget limits and live endpoint pings before allowing it to reach a human.
-* **Risk: Feedback Atrophy.** *Mitigation:* $\epsilon$-Greedy Trust Tuning. To prevent the system from becoming a risk-averse echo chamber, a "Blue-Sky Challenger" agent is protected from penalty decay 5% of the time to ensure creative solutions remain part of the network over years of operation.
+### Why Omnision?
+Generative AI often suffers from hallucinations when given raw, unconstrained data. Omnision solves this by using a **Neuro-Symbolic Architecture**. It intentionally avoids passing raw data directly to Large Language Models. Instead, it uses rigorous, deterministic data science (Z-scores, SHAP values, Directed Acyclic Graphs) to build a tightly constrained "cage" of verified evidence. The LLM is only permitted to operate *inside* this mathematically verified cage.
 
 ---
 
-## ⚙️ The 7-Stage Orchestration Pipeline
-*(Aligned with BusinessIntelligence.ai Requirements)*
+## ðŸ§  Neuro-Symbolic Bounding: How Omnision Stops AI Hallucinations
 
-Omnision executes a 7-stage sequential pipeline (`kpi_engine/pipeline.py`), blending standard machine learning, vector databases (FAISS), and multi-agent orchestration (LangGraph):
+To prevent the AI from making wild, unverified logical leaps, Omnision utilizes strict data structures and mathematical pruning *before* the prompt ever reaches the LLM.
 
-**1. Data Generation and Telemetry Ingestion (Detects material movements):**
-Uses `KartMitraDataGenerator` to synthesize temporally correlated time-series data across disparate domains.
-**2. Detection and Cold-Start Management (Reconciles context):**
-Monitors for statistical deviations (Z-score > 3.0). Newly launched KPIs rely on static tripwires until they cross a 30-day graduation threshold.
-**3. Directional Scoping and Enterprise Security (Role-based security):**
-Directionally filters noise and applies the Hybrid Security Matrix (Domain Pruning & Token Masking) before evidence aggregation.
-**4. Bounded Graph Construction & Causal Scoring (Identifies explanatory drivers):**
-Uses a `CompositeCausalScorer` combining Statistical Impact (simulated SHAP) and Contextual Relevance (FAISS embeddings).
-**5. Multi-Agent Swarm (Generates persona-specific narratives):**
-Passes the DAG to a LangGraph swarm containing a Prescriptive Agent, an Ops Playbook Agent, and a Blue-Sky Challenger.
-**6. The Critic and Supervisor Layer (Communicates uncertainty & Recommends constraints):**
-A deterministic validator that enforces JSON schemas, budgetary bounds, checks liveness pings of technical levers, and tags unproven ideas with shadow-run requirements.
-**7. Closed-Loop Continuous Learning (Learns from user feedback):**
-Human RCA overrides are ingested back into the FAISS memory banks. The Swarm's confidence weights decay when rejected, mathematically learning stakeholder preferences.
+### 1. The A* (Anchor) Anomaly (Ground Zero)
+When a KPI breaches its mathematical threshold (either a 3.0 Z-score for mature metrics or a 5% static tripwire for cold-starts), the engine isolates it as the **`AnchorNode`** (A*). Everything in the system centers around A*. It serves as the absolute "Ground Zero" node from which the rest of the causal investigation is rooted.
+
+### 2. The Causal DAG (Graph Construction)
+The engine does not pass raw, flat text logs to the LLM. Instead, it constructs a **Directed Acyclic Graph (DAG)** (`kpi_engine/graph/dag_model.py`). It maps rigorous causal edges from the A* node out to Tier 1 (System Logs), Tier 2 (Operational Levers), and Tier 3 (Macro forces). The AI is forced to reason exclusively along these verified edges.
+
+### 3. Dynamic Pruning ("The Cage" & "The Brakes")
+The engine ruthlessly cuts out hallucinated "reasons" or irrelevant states dynamically:
+*   **The Cage (Temporal & Dimensional Pruning):** The graph builder strictly deletes any candidate log that falls outside a tight `[-48h, +12h]` window of the anomaly. It also prunes states dynamically if dimensional tags (e.g., `region="West"`) do not mathematically intersect with the Anchor.
+*   **The Brakes (Weight Pruning):** The configuration enforces an `edge_prune_weight_threshold` (default: `0.65`). If the composite causal weight of an edge drops below this value, that reason is dynamically severed and discarded as "Noise." Traversal depth is also hard-capped (`max_traversal_hops = 2`) to stop infinite logical leaps.
+
+### 4. k-Nearest Neighbors (FAISS Vector RAG)
+Instead of relying on the LLM's raw pre-trained memory, the engine uses **FAISS** (Facebook AI Similarity Search) to calculate precise **k-Nearest Neighbors (k-NN)** in high-dimensional embedding spaces (`kpi_engine/memory/vector_store.py`). When the A* anomaly triggers, the vector store performs a nearest-neighbor mathematical search against the institutional playbook. It **only pulls the $k$ nearest historical precedents** and uses their geometric distance to calculate the exact `Contextual Relevance (CR)` score for the DAG.
 
 ---
 
-## 🛡️ Enterprise Production Features (v2.0 Extended)
+## ðŸŒŸ Enterprise Production Features (v2.0 Extended Edition)
 
 Omnision includes subtle but critical edge-case protections required for live enterprise deployments:
 
-1. **Alert Storm Mitigation (Super-Anchors):** If a systemic failure causes dozens of KPIs to breach simultaneously, Omnision clusters them into a single `Compound_Anchor_Node`.
+1. **Alert Storm Mitigation (Super-Anchors):** If a systemic failure causes dozens of KPIs to breach simultaneously, Omnision clusters them into a single `Compound_Anchor_Node`. This prevents the system from spawning redundant, expensive LLM swarms, saving compute costs.
 2. **External Web Intelligence Agent:** If internal causal evidence is weak, Omnision dynamically invokes an external agent that queries live market data via `yfinance` and runs sentiment analysis using a hosted HuggingFace **FinBERT** API to assess macroeconomic factors.
-3. **Zero-Day Incidents (Shadow Flag):** If a recommended action originates entirely from the unconstrained Blue-Sky LLM, the system tags it with `requires_shadow_run: true`, forcing RACI owners to sandbox the action before running it in production.
-4. **Stale Operational Levers (Liveness Pings):** Before approving an action, the Critic performs a real-time HTTP 200 ping against the target operational endpoint (e.g., AWS, LaunchDarkly). If the endpoint is down, the action is rejected as technically infeasible.
+3. **Feedback Atrophy Protection (Epsilon-Greedy):** When an agent's idea is rejected, its trust score usually decays. To prevent the system from degrading into a rigid, risk-averse echo chamber over time, Omnision shields the creative "Blue-Sky Challenger" agent from penalty decay 5% of the time.
+4. **Zero-Day Incidents (Shadow Flag):** If a recommended action originates entirely from the unconstrained Blue-Sky LLM, the system tags it with `requires_shadow_run: true`, forcing RACI owners to sandbox the action before running it in production.
+5. **Stale Operational Levers (Liveness Pings):** Before approving an action, the Critic performs a real-time HTTP 200 ping against the target operational endpoint (e.g., AWS, LaunchDarkly). If the endpoint is down, the action is rejected as technically infeasible.
 
 ---
 
-## 🚀 Quickstart & Installation
+## ðŸ›¡ï¸ Enterprise-Grade Security & Privacy
+
+Omnision respects enterprise data boundaries before any data reaches the LLM Swarm:
+* **Hybrid Security Matrix (Tier 1 & Tier 2)**: Automatically prunes highly classified entities (e.g., M&A data) or masks financial metrics (`<REDACTED_DOLLAR_VALUE>`) based on the querying user's clearance level.
+* **PII Redaction (Simulated Presidio)**: Automatically scans logs and support tickets, redacting Emails, Credit Cards, and SSNs.
+* **Behavioral Firewall (Simulated NeMo Guardrails)**: An output scanner intercepts the LLM's recommended actions, hard-blocking destructive commands (e.g., `DROP TABLE`, `rm -rf`).
+
+---
+
+## ðŸš€ Quickstart & Installation
 
 ### Prerequisites
 * Python 3.9+
 * Windows / Linux / macOS compatible.
-* No heavy C-compiled dependencies (XGBoost/spaCy are replaced with Pure Python/Scikit-Learn equivalents for maximal OS compatibility).
+* No heavy C-compiled dependencies.
 
 ### Installation
 ```bash
@@ -87,6 +78,13 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 > Opens in your browser at `http://localhost:8501`.
+> 
+> 🔒 **Default Login Credentials:**
+> * Username: `admin` | Password: `adminpassword` (EXECUTIVE_VP)
+> * Username: `engineer` | Password: `engineerpassword` (SENIOR_ENGINEER)
+> * Username: `analyst` | Password: `analystpassword` (JUNIOR_ANALYST)
+> 
+> *To change these passwords or add new users, simply edit the `kpi_engine/users.json` file in your repository!*
 
 ### 2. Launch Interactive CLI Demo
 ```bash
@@ -95,31 +93,56 @@ python run_demo.py --scenario SCENARIO_1_STRIPE_GATEWAY_OUTAGE
 
 # Run Scenario 2: Multivariate Price & Volume Interaction
 python run_demo.py --scenario SCENARIO_2_MULTIVARIATE_DAG_SHAP
-
-# Run Scenario 3: Cold-Start KPI Phased Handover
-python run_demo.py --scenario SCENARIO_3_COLD_START_PHASED_HANDOVER
-
-# Run Scenario 4: Hybrid Security Matrix
-python run_demo.py --scenario SCENARIO_4_SECURITY_CLEARANCE_MATRIX --role JUNIOR_ANALYST
 ```
 
 ---
 
-## 🧮 Mathematical Foundations
+## ðŸ¢ Business Setup Guide: Deploying to Your Organization
+
+Omnision is built to be domain-agnostic. Whether you are running a Fintech app, an E-Commerce store, or a Supply Chain logistics network, you can adapt Omnision to automatically manage your business incidents by following these 5 steps:
+
+### Step 1: Hook Up Your Real Data Warehouse (ETL)
+By default, the engine uses the `KartMitraDataGenerator` to synthesize fake telemetry for the demo. To use real data:
+1. Review the `TelemetryPoint` and `CandidateNode` schemas inside `kpi_engine/data/models.py`.
+2. Write a daily cron job, Airflow DAG, or dbt model that queries your internal databases (BigQuery, Snowflake, Datadog) and exports your logs, marketing events, and sales metrics into these exact Pydantic JSON formats.
+3. Replace the mock generator call in `kpi_engine/pipeline.py` with a function that loads your live JSON payload.
+
+### Step 2: Define Your Custom KPIs (Semantic Contracts)
+The engine needs to know the rules for your specific business metrics.
+1. Open `kpi_engine/data/models.py`.
+2. Instantiate `KPISemanticContract` objects for your real metrics (e.g., `Cart_Abandonment_Rate`, `API_Latency_P99`).
+3. Define the crucial boundaries for each metric: 
+   * Set `target_value` (what the metric *should* be).
+   * Set `static_tripwire` (e.g., `0.05` means a 5% drop triggers an emergency).
+   * Set `graduation_threshold` (how many days of data are needed before it switches from cold-start to Z-score math).
+
+### Step 3: Seed Your Institutional Memory (FAISS Graph-RAG)
+To prevent the AI from giving generic advice, you must teach it your company's standard operating procedures (SOPs).
+1. Export your past incident post-mortems from Confluence, Jira, or Zendesk.
+2. Format them into text documents and pass them into the `PlaybookVectorStore` in `kpi_engine/memory/vector_store.py`.
+3. **The Result:** The next time a server crashes or sales dip, Omnision will automatically perform a k-Nearest Neighbor search, retrieve your company's exact past solution, and inject it into the AI prompt as a "Tier 0 Historical Precedent."
+
+### Step 4: Configure Enterprise Security Clearances
+1. Open `kpi_engine/scoper/security_matrix.py`.
+2. Define what specific logs correspond to different `SecurityTier` classifications (e.g., flag all legal/HR logs as `TIER_1_DOMAIN_PRUNING`).
+3. Set your organization's financial limits in `kpi_engine/config.py` (e.g., `vp_approval_required_cost_usd = 100000.0`). The AI will automatically route any proposed fix that costs more than $100k to a VP for manual approval.
+
+### Step 5: Connect Your Cloud / Local LLM
+1. Open `kpi_engine/config.py`.
+2. Provide your API Keys for your preferred provider. Omnision supports **OpenAI (GPT-4o)**, **Anthropic (Claude 3.5 Sonnet)**, and **Google (Gemini 1.5 Pro)**. 
+3. **Data Privacy / No-Leak Deployments:** If your enterprise has strict data privacy rules that prohibit sending logs to public APIs (to prevent accidental data leaks), simply set `llm_provider = "ollama"`. Omnision will automatically route the LangGraph swarm to your privately hosted **Llama 3** instance (via Ollama or vLLM), ensuring zero data ever leaves your servers.
+4. Add your `HF_TOKEN` (HuggingFace) if you want the External Web Intelligence Agent to actively scan the stock market and competitor news using FinBERT.
+---
+
+## ðŸ“ Mathematical Foundations
 
 Omnision relies on rigorous mathematics before handing data to AI:
 
 1. **Cold-Start Phased Handover**:
-   - Phase 1: Static Tripwire $|x - x_{\text{target}}| / x_{\text{target}} \ge 0.05$
+   - Phase 1: Static Tripwire
    - Phase 2: Algorithmic Shadowing via EWMA + Surrogate Seasonality overlay
-   - Phase 3: Automated Graduation to rolling 30-day $Z$-score once $N \ge 30$.
+   - Phase 3: Automated Graduation to rolling 30-day Z-score once N >= 30.
 
-2. **Multivariate Metric DAGs**:
-   $$\Delta R = P \cdot \Delta V + V \cdot \Delta P + \Delta P \cdot \Delta V$$
-   Captures price effect, volume effect, and joint non-linear interaction without machine learning approximations.
+2. **Master Multiplicative Composite Weight**:
+   W(A*, n_i) = Contextual Relevance x Causal Impact
 
-3. **Master Multiplicative Composite Weight**:
-   $$W(A^*, n_i) = \text{Contextual Relevance} \times \text{Causal Impact}$$
-
-4. **Telemetry-Driven Trust Weight Tuning**:
-   $$W_m^{(t+1)} = W_m^{(t)} \times (1 - \eta)$$

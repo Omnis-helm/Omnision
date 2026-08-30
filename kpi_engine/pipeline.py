@@ -1,4 +1,4 @@
-"""
+﻿"""
 End-to-End Orchestration Pipeline for the KPI Storytelling Engine (v3.0 / Extended Edition v2.0)
 """
 
@@ -93,6 +93,8 @@ class KPIStorytellingEngine:
         scenario_id: str = "SCENARIO_1_STRIPE_GATEWAY_OUTAGE",
         user_role: UserClearance = UserClearance.EXECUTIVE_VP,
         force_refresh: bool = False,
+        primary_llm: str = "mock",
+        bluesky_llm: str = "mock",
         enable_super_anchor: bool = True,
     ) -> Dict[str, Any]:
         """Executes the full 7-stage pipeline from detection to governed payload delivery."""
@@ -173,7 +175,7 @@ class KPIStorytellingEngine:
         final_state = execute_langgraph_swarm(
             anchor=anchor_dict,
             causal_evidence=evidence_dicts,
-            context=context
+            context={**context, 'primary_llm_provider': primary_llm, 'bluesky_llm_provider': bluesky_llm}
         )
         
         # Build the final Master Payload to maintain Streamlit UI compatibility
@@ -333,7 +335,7 @@ class KPIStorytellingEngine:
             anchor=anchor,
             new_primary_driver=verified_driver,
             sorted_evidence=[verified_driver],
-            context=context,
+            context={**context, 'primary_llm_provider': primary_llm, 'bluesky_llm_provider': bluesky_llm},
             user_role=user_role,
             security_applied="PUBLIC_UNRESTRICTED",
             primary_causal_weight=0.98,
@@ -345,3 +347,5 @@ class KPIStorytellingEngine:
             "recalibration_record": recalibration_record,
             "master_payload": updated_payload,
         }
+
+

@@ -1,0 +1,14 @@
+{
+    "admin": {
+        "password": "adminpassword",
+        "role": "EXECUTIVE_VP"
+    },
+    "engineer": {
+        "password": "engineerpassword",
+        "role": "SENIOR_ENGINEER"
+    },
+    "analyst": {
+        "password": "analystpassword",
+        "role": "JUNIOR_ANALYST"
+    }
+}

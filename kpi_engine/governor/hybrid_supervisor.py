@@ -1,23 +1,13 @@
-"""
+﻿"""
 Hybrid Neuro-Symbolic Supervisor
 """
 import os
 import json
 import random
 from typing import Dict, Any
-from langchain_core.messages import AIMessage
-from langchain_openai import ChatOpenAI
+from kpi_engine.governor.llm_factory import get_llm
 from kpi_engine.config import CONFIG
 from kpi_engine.governor.llm_state import AgentState
-
-class MockSupervisorLLM:
-    """Fallback mock LLM for the Supervisor."""
-    def invoke(self, prompt: str) -> AIMessage:
-        # Simulate a pass 100% of the time for the mock to allow the pipeline to proceed
-        return AIMessage(content=json.dumps({
-            "decision": "APPROVED",
-            "reason": "The proposal aligns logically with the root cause and budget constraints."
-        }))
 
 def check_liveness_ping(action: str) -> bool:
     """Simulates a real-time network ping to an operational lever (e.g. AWS API, LaunchDarkly)."""
@@ -27,11 +17,6 @@ def check_liveness_ping(action: str) -> bool:
         return True
     return random.random() > 0.10
 
-def get_supervisor_llm():
-    api_key = os.getenv("OPENAI_API_KEY", CONFIG.openai_api_key)
-    if api_key and api_key != "your_openai_api_key_here":
-        return ChatOpenAI(api_key=api_key, model="gpt-4o-mini", temperature=0.0)
-    return MockSupervisorLLM()
 
 def deterministic_validator_node(state: AgentState) -> Dict[str, Any]:
     """Layer 1: Hardcoded rules and schema checks."""
@@ -83,7 +68,7 @@ def llm_supervisor_node(state: AgentState) -> Dict[str, Any]:
     latest_proposal = proposals[-1]
     evidence = state.get("causal_evidence", [])
     
-    llm = get_supervisor_llm()
+    llm = get_llm(provider=state.get("primary_llm_provider", "mock"), temperature=0.0)
     
     prompt = (
         f"You are the Omnision Chief Supervisor.\n"
@@ -115,3 +100,7 @@ def llm_supervisor_node(state: AgentState) -> Dict[str, Any]:
         "supervisor_feedback": reason,
         "tokens_consumed": tokens
     }
+
+
+
+

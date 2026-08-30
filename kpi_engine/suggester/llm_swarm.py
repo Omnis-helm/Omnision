@@ -1,44 +1,22 @@
-"""
+﻿"""
 LangGraph Swarm Nodes - Multi-Agent Generator
 """
 import os
 import json
 from typing import Dict, Any, List
-from langchain_core.messages import AIMessage
-from langchain_openai import ChatOpenAI
+from kpi_engine.governor.llm_factory import get_llm
 from kpi_engine.config import CONFIG
 from kpi_engine.governor.llm_state import AgentState
-import uuid
+import hashlib
 
-class MockLLM:
-    """Fallback mock LLM to ensure demo runs without API keys."""
-    def invoke(self, prompt: str) -> AIMessage:
-        return AIMessage(content=json.dumps({
-            "action": "Implement Phased Mitigation Protocol via LangGraph Swarm",
-            "source_layer": "Layer 3 - Prescriptive Swarm",
-            "estimated_cost_usd": 1500.0,
-            "time_to_impact_minutes": 30,
-            "raci_owner": "Platform Engineering",
-            "approval_status": "PENDING_REVIEW"
-        }))
-
-def get_swarm_llm():
-    api_key = os.getenv("OPENAI_API_KEY", CONFIG.openai_api_key)
-    if api_key and api_key != "your_openai_api_key_here":
-        return ChatOpenAI(api_key=api_key, model="gpt-4o-mini", temperature=0.8)
-    return MockLLM()
-
-def swarm_agent_node(state: AgentState) -> Dict[str, Any]:
-    """The unified Swarm Agent that generates candidate solutions."""
-    llm = get_swarm_llm()
-    
-    # Build prompt context
+def _generate_proposal(state: AgentState, llm_provider: str, persona: str, layer: str, temp: float) -> Dict[str, Any]:
+    llm = get_llm(provider=llm_provider, temperature=temp)
     anchor = state.get("anchor_context", {})
     evidence = state.get("causal_evidence", [])
     feedback = state.get("supervisor_feedback", "")
     
     prompt = (
-        f"You are the Omnision Prescriptive Swarm.\n"
+        f"You are the {persona}.\n"
         f"KPI Impacted: {anchor.get('metric_name', 'Unknown')}\n"
         f"Primary Driver: {evidence[0].get('content', 'Unknown') if evidence else 'Unknown'}\n"
         f"Generate a robust operational JSON solution.\n"
@@ -49,46 +27,60 @@ def swarm_agent_node(state: AgentState) -> Dict[str, Any]:
         
     response = llm.invoke(prompt)
     
-    # Parse output
     try:
         content = response.content
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0]
         proposal = json.loads(content)
         
-        import hashlib
         action_hash = hashlib.md5(proposal.get("action", "fallback").encode()).hexdigest()[:8].upper()
-        proposal["action_id"] = f"ACT-SWARM-{action_hash}"
+        proposal["action_id"] = f"ACT-{action_hash}"
+        proposal["source_layer"] = layer
         if "critic_verdict" not in proposal:
             proposal["critic_verdict"] = "PENDING_SUPERVISOR"
             
     except Exception as e:
-        import hashlib
         err_hash = hashlib.md5(str(e).encode()).hexdigest()[:8].upper()
         proposal = {
             "action_id": f"ACT-ERR-{err_hash}",
-            "action": "Fallback: Error parsing LLM JSON",
-            "source_layer": "Error Handling",
+            "action": f"Fallback: Error parsing LLM JSON ({llm_provider})",
+            "source_layer": layer,
             "estimated_cost_usd": 0.0,
             "time_to_impact_minutes": 0,
-            "raci_owner": "System",
-            "approval_status": "REJECTED",
-            "error_msg": str(e),
-            "raw_output": response.content
+            "raci_owner": "SYSTEM",
+            "approval_status": "ERROR",
+            "critic_verdict": f"JSON Parsing Error: {str(e)}"
         }
-        
-    # Append the proposal to state
-    current_proposals = list(state.get("proposals", []))
-    current_proposals.append(proposal)
+    return proposal
+
+def rca_story_node(state: AgentState) -> Dict[str, Any]:
+    """Generates the primary prescriptive RCA."""
+    provider = state.get("primary_llm_provider", "mock")
+    proposal = _generate_proposal(state, provider, "Omnision Prescriptive Swarm", "Layer 3 - Prescriptive Swarm", 0.4)
     
-    # Update iteration count
-    iterations = state.get("iteration_count", 0) + 1
-    
-    # Approx token cost simulation
-    tokens = state.get("tokens_consumed", 0) + 300
+    proposals = state.get("proposals", [])
+    proposals.append(proposal)
     
     return {
-        "proposals": current_proposals,
-        "iteration_count": iterations,
-        "tokens_consumed": tokens
+        "proposals": proposals,
+        "tokens_consumed": state.get("tokens_consumed", 0) + 500
+    }
+
+def blue_sky_node(state: AgentState) -> Dict[str, Any]:
+    """Generates unconventional, highly creative alternative ideas (Shadow Run)."""
+    provider = state.get("bluesky_llm_provider", "mock")
+    # Only run Blue-Sky on first iteration to save tokens
+    if state.get("iteration_count", 0) > 0:
+        return {}
+        
+    proposal = _generate_proposal(state, provider, "Blue-Sky Challenger (Creative, Unconstrained)", "Layer 5 - Blue-Sky", 0.9)
+    # Flag it for shadow run
+    proposal["requires_shadow_run"] = True
+    
+    proposals = state.get("proposals", [])
+    proposals.append(proposal)
+    
+    return {
+        "proposals": proposals,
+        "tokens_consumed": state.get("tokens_consumed", 0) + 500
     }
