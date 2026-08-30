@@ -46,7 +46,7 @@ def get_llm(provider: str = None, temperature=0.0):
         api_key = os.getenv("GOOGLE_API_KEY", getattr(CONFIG, 'google_api_key', ''))
         if not api_key:
             raise MissingAPIKeyError("Google API Key not found. Please add it to config.py or set GOOGLE_API_KEY.")
-        return ChatGoogleGenerativeAI(google_api_key=api_key, model="gemini-1.5-flash", temperature=temperature)
+        return ChatGoogleGenerativeAI(google_api_key=api_key, model="gemini-2.5-flash", temperature=temperature)
             
     elif provider == "ollama":
         from langchain_ollama import ChatOllama
@@ -55,5 +55,6 @@ def get_llm(provider: str = None, temperature=0.0):
         return ChatOllama(base_url=base_url, model=model, temperature=temperature)
         
     return MockLLM(provider_name=provider)
+
 
 
