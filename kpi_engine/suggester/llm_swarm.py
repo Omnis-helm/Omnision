@@ -77,7 +77,8 @@ def rca_story_node(state: AgentState) -> Dict[str, Any]:
     
     return {
         "proposals": proposals,
-        "tokens_consumed": state.get("tokens_consumed", 0) + 500
+        "tokens_consumed": state.get("tokens_consumed", 0) + 500,
+        "iteration_count": state.get("iteration_count", 0) + 1
     }
 
 def blue_sky_node(state: AgentState) -> Dict[str, Any]:
@@ -96,6 +97,8 @@ def blue_sky_node(state: AgentState) -> Dict[str, Any]:
     
     return {
         "proposals": proposals,
-        "tokens_consumed": state.get("tokens_consumed", 0) + 500
+        "tokens_consumed": state.get("tokens_consumed", 0) + 500,
+        "iteration_count": state.get("iteration_count", 0) + 1
     }
+
 
