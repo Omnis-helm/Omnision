@@ -1,4 +1,4 @@
-__pycache__/
+﻿__pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
@@ -9,4 +9,4 @@ venv/
 env/
 
 # Keep API keys secure
-kpi_engine/config.py
+

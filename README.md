@@ -1,4 +1,4 @@
-# ⚡ Omnision: Autonomous KPI Storytelling & Causal Governance Engine
+﻿# âš¡ Omnision: Autonomous KPI Storytelling & Causal Governance Engine
 
 ![Version](https://img.shields.io/badge/version-3.0%20(v2.0%20Extended)-blue.svg)
 ![Status](https://img.shields.io/badge/status-Production%20Ready-success.svg)
@@ -8,7 +8,7 @@
 
 ---
 
-## 🧠 The What, Why, and How
+## ðŸ§  The What, Why, and How
 
 ### What is Omnision?
 Omnision is a self-governing analytics pipeline. Traditional dashboards (like Tableau or Datadog) simply tell you that a metric is broken. Omnision autonomously investigates *why* it broke, scopes the blast radius, enforces enterprise data security, and deploys a multi-agent LLM swarm to generate a mathematically sound, budget-constrained mitigation plan.
@@ -18,7 +18,7 @@ Generative AI often suffers from hallucinations when given raw, unconstrained da
 
 ---
 
-## 🔐 Multi-LLM Architecture & RBAC Security (v3.0)
+## ðŸ” Multi-LLM Architecture & RBAC Security (v3.0)
 
 Omnision now features a heavily modular, highly secure dual-node LangGraph orchestration engine designed for zero-leak data deployments.
 
@@ -39,7 +39,7 @@ The frontend intercepts and validates the structure of your API keys before runn
 
 ---
 
-## 🔗 Neuro-Symbolic Bounding: How Omnision Stops AI Hallucinations
+## ðŸ”— Neuro-Symbolic Bounding: How Omnision Stops AI Hallucinations
 
 To prevent the AI from making wild, unverified logical leaps, Omnision utilizes strict data structures and mathematical pruning *before* the prompt ever reaches the LLM.
 
@@ -59,7 +59,7 @@ Instead of relying on the LLM's raw pre-trained memory, the engine uses **FAISS*
 
 ---
 
-## 🚀 Quickstart & Installation
+## ðŸš€ Quickstart & Installation
 
 ### Prerequisites
 * Python 3.9+
@@ -80,7 +80,7 @@ streamlit run app.py
 ```
 > Opens in your browser at `http://localhost:8501`.
 > 
-> 🔒 **Default Login Credentials:**
+> ðŸ”’ **Default Login Credentials:**
 > * Username: `admin` | Password: `adminpassword` (EXECUTIVE_VP) - *Can use all LLMs*
 > * Username: `engineer` | Password: `engineerpassword` (SENIOR_ENGINEER) - *Restricted to Ollama*
 > * Username: `analyst` | Password: `analystpassword` (JUNIOR_ANALYST) - *Restricted to Ollama*
@@ -89,7 +89,7 @@ streamlit run app.py
 
 ---
 
-## 🛠️ Configuring API Keys
+## ðŸ› ï¸ Configuring API Keys
 
 Omnision supports OpenAI, Anthropic, Gemini, and local Ollama models. 
 You must configure your API keys in **`kpi_engine/config.py`**. 
@@ -100,13 +100,13 @@ You must configure your API keys in **`kpi_engine/config.py`**.
 
 ```python
 class SystemConfig(BaseModel):
-    # 🔑 PASTE YOUR API KEYS HERE:
+    # ðŸ”‘ PASTE YOUR API KEYS HERE:
     openai_api_key: str = "sk-..." 
     anthropic_api_key: str = "sk-ant-..."
     google_api_key: str = "..."
     huggingface_api_key: str = "..."  # Required ONLY if using FinBERT Web Agent
     
-    # 🦙 OLLAMA SETTINGS (For 100% Private Data)
+    # ðŸ¦™ OLLAMA SETTINGS (For 100% Private Data)
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3"
 ```
@@ -114,7 +114,7 @@ class SystemConfig(BaseModel):
 
 ---
 
-## 🏢 Business Setup Guide: Deploying to Your Organization
+## ðŸ¢ Business Setup Guide: Deploying to Your Organization
 
 Omnision is built to be domain-agnostic. Whether you are running a Fintech app, an E-Commerce store, or a Supply Chain logistics network, you can adapt Omnision to automatically manage your business incidents by following these 5 steps:
 
@@ -147,3 +147,19 @@ To prevent the AI from giving generic advice, you must teach it your company's s
 ### Step 5: Start the LangGraph Orchestrator
 Once your keys and KPIs are wired up, you can start the dashboard using `streamlit run app.py` and manage your operations entirely autonomously.
 
+
+## ⚠️ Pending Team Action Items (To-Do List)
+
+The following major UX/UI updates are currently pending and must be implemented by the team:
+
+### 1. Frontend UI Overhaul (Two-Column Interactive Table)
+The current UI layout makes the RCA and Solution hard to read. The frontend must be rewritten into a clean two-column interactive table:
+* **Left Column (RCA):** Displays the suggested Root Cause with an **Approve/Deny** button. Below this, there must be a text input field for a human to manually override or add a human RCA.
+* **Right Column (Fixes):** Displays the suggested Mitigation Action with an **Approve/Deny** button. This column must explicitly list expected metadata: *Expected Time to Fix*, *Expected Cost*, and *Expected Damage Reverted (KPI impact)*.
+* **Re-Trigger Logic:** The LLM Swarm should *only* be reconfigured and re-triggered if a user explicitly denies an RCA/Fix, or if a human manually overrides them.
+
+### 2. DevOps Operations View Explanation
+Currently, there is confusion around the "DevOps & Operations view" tab in the frontend. The team needs to clearly document or redesign this tab. *Context: This tab is currently intended to show the raw JSON payload and the simulated API payloads (e.g., LaunchDarkly toggles, AWS commands) that the Swarm would execute if the action was approved, allowing engineers to verify the technical blast radius before executing.*
+
+### 3. LLM JSON Parsing Resilience (Workarounds)
+The Swarm occasionally throws a `Fallback: Error parsing LLM JSON` when Gemini wraps its output in conversational markdown or fails to adhere strictly to the JSON schema. While a regex stripper has been implemented, the team needs to build further workarounds or automatic retry logic if the JSON parser completely fails to extract the schema.
