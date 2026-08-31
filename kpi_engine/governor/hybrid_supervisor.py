@@ -75,17 +75,24 @@ def llm_supervisor_node(state: AgentState) -> Dict[str, Any]:
         f"Review this proposed action for logical alignment with the Causal Root Cause.\n"
         f"Primary Cause: {evidence[0].get('content', 'Unknown') if evidence else 'Unknown'}\n"
         f"Proposed Action: {latest_proposal.get('action')}\n\n"
-        f"Respond ONLY in strictly valid JSON with exactly these two keys:\n"
+        f"You MUST respond ONLY in strictly valid JSON with exactly these two keys:\n"
         f'  "decision": "APPROVED" or "REJECTED"\n'
         f'  "reason": "String explaining why"\n'
+        f"Do NOT include markdown backticks or any other text.\n"
     )
     
     response = llm.invoke(prompt)
     
     try:
-        content = response.content
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0]
+        content = str(response.content).strip()
+        if content.startswith("```"):
+            lines = content.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines[-1].strip() == "```":
+                lines = lines[:-1]
+            content = "\n".join(lines).strip()
+            
         result = json.loads(content)
         decision = result.get("decision", "REJECTED")
         reason = result.get("reason", "No reason provided by LLM.")
@@ -100,6 +107,7 @@ def llm_supervisor_node(state: AgentState) -> Dict[str, Any]:
         "supervisor_feedback": reason,
         "tokens_consumed": tokens
     }
+
 
 
 

@@ -33,7 +33,8 @@ def _generate_proposal(state: AgentState, llm_provider: str, persona: str, layer
         f"KPI Impacted: {anchor.get('metric_name', 'Unknown')}\n"
         f"Primary Driver: {evidence[0].get('content', 'Unknown') if evidence else 'Unknown'}\n"
         f"{web_intelligence}"
-        f"Generate a robust operational JSON solution.\n"
+        f"Generate a robust operational solution.\n"
+        f"You MUST return your response as a RAW, VALID JSON object with NO markdown formatting, NO intro text, and NO backticks.\n"
         f"Required keys: action, source_layer, estimated_cost_usd, time_to_impact_minutes, raci_owner, approval_status.\n"
     )
     if feedback:
@@ -42,9 +43,16 @@ def _generate_proposal(state: AgentState, llm_provider: str, persona: str, layer
     response = llm.invoke(prompt)
     
     try:
-        content = response.content
-        if "```json" in content:
-            content = content.split("```json")[1].split("```")[0]
+        content = str(response.content).strip()
+        # Strip all possible markdown block variations
+        if content.startswith("```"):
+            lines = content.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines[-1].strip() == "```":
+                lines = lines[:-1]
+            content = "\n".join(lines).strip()
+            
         proposal = json.loads(content)
         
         action_hash = hashlib.md5(proposal.get("action", "fallback").encode()).hexdigest()[:8].upper()
@@ -100,5 +108,6 @@ def blue_sky_node(state: AgentState) -> Dict[str, Any]:
         "tokens_consumed": state.get("tokens_consumed", 0) + 500,
         "iteration_count": state.get("iteration_count", 0) + 1
     }
+
 
 
