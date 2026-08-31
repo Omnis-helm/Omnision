@@ -1,4 +1,4 @@
-﻿"""
+"""
 End-to-End Orchestration Pipeline for the KPI Storytelling Engine (v3.0 / Extended Edition v2.0)
 """
 
@@ -96,6 +96,8 @@ class KPIStorytellingEngine:
         primary_llm: str = "mock",
         bluesky_llm: str = "mock",
         enable_super_anchor: bool = True,
+        override_driver: Optional[CandidateNode] = None,
+        extra_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Executes the full 7-stage pipeline from detection to governed payload delivery."""
         # 1. Load Scenario / Detect Anchor Node
@@ -103,6 +105,8 @@ class KPIStorytellingEngine:
         anchor: AnchorNode = scenario["anchor"]
         evidence_pool: List[CandidateNode] = scenario["evidence_pool"]
         context: Dict[str, Any] = scenario.get("context", {})
+        if extra_context:
+            context.update(extra_context)
 
         # --- Simulated Super-Anchor (Alert Storm Deduplication) ---
         if enable_super_anchor and context.get("concurrent_alerts"):
@@ -155,6 +159,10 @@ class KPIStorytellingEngine:
         real_drivers = [n for n in surviving_evidence if "HIST" not in n.node_id]
         primary_driver = real_drivers[0] if real_drivers else (surviving_evidence[0] if surviving_evidence else caged_nodes[0])
         top_weight = scored_nodes[0][1] if scored_nodes else 0.95
+
+        if override_driver:
+            primary_driver = override_driver
+            surviving_evidence = [override_driver] + [n for n in surviving_evidence if n.node_id != override_driver.node_id]
 
         sec_label = "PUBLIC_UNRESTRICTED"
         if any(n.is_masked for n in surviving_evidence):
@@ -234,6 +242,7 @@ class KPIStorytellingEngine:
             action=raw_action,
             estimated_cost_usd=float(approved_proposal.get("estimated_cost_usd", 0.0)),
             time_to_impact_minutes=int(approved_proposal.get("time_to_impact_minutes", 30)),
+            expected_damage_reverted=f"{abs(anchor.variance_pct):.1f}% KPI Recovery",
             raci_owner=approved_proposal.get("raci_owner", "System"),
             approval_status=approval_status,
             source_layer=source_layer,
@@ -303,6 +312,8 @@ class KPIStorytellingEngine:
         promoted_node_id: Optional[str] = None,
         custom_injected_text: Optional[str] = None,
         user_role: UserClearance = UserClearance.EXECUTIVE_VP,
+        primary_llm: str = "mock",
+        bluesky_llm: str = "mock",
         is_noise: bool = False,
     ) -> Dict[str, Any]:
         """Closed-loop Phase 1 & 2: Human RCA correction and Supervisor Invalidation Cascade."""
@@ -313,6 +324,9 @@ class KPIStorytellingEngine:
 
         demoted_node = next((n for n in evidence_pool if n.node_id == demoted_node_id), evidence_pool[0])
         promoted_node = next((n for n in evidence_pool if n.node_id == promoted_node_id), None)
+
+        if promoted_node is None and not custom_injected_text:
+            custom_injected_text = f"Alternative evidence promoted: {promoted_node_id or 'Unknown'}"
 
         verified_driver, recalibration_record = self.rca_corrector.perform_rca_override(
             anchor_kpi_id=anchor.kpi_id,
@@ -330,16 +344,15 @@ class KPIStorytellingEngine:
             )
             recalibration_record["noise_injected"] = True
 
-        # Trigger Supervisor Invalidation Cascade
-        updated_payload = self.supervisor.execute_invalidation_cascade(
-            anchor=anchor,
-            new_primary_driver=verified_driver,
-            sorted_evidence=[verified_driver],
-            context={**context, 'primary_llm_provider': primary_llm, 'bluesky_llm_provider': bluesky_llm},
+        # Re-trigger with same driver but updated context
+        updated_payload = self.run_pipeline(
+            scenario_id=scenario_id,
             user_role=user_role,
-            security_applied="PUBLIC_UNRESTRICTED",
-            primary_causal_weight=0.98,
-        )
+            force_refresh=True,
+            primary_llm=primary_llm,
+            bluesky_llm=bluesky_llm,
+            override_driver=verified_driver
+        )["master_payload"]
 
         return {
             "status": "OVERRIDDEN_AND_REGENERATED",
@@ -348,4 +361,39 @@ class KPIStorytellingEngine:
             "master_payload": updated_payload,
         }
 
+    def handle_rejected_fix(
+        self,
+        scenario_id: str,
+        primary_driver: CandidateNode,
+        rejected_action_text: str,
+        user_role: UserClearance = UserClearance.EXECUTIVE_VP,
+        primary_llm: str = "mock",
+        bluesky_llm: str = "mock",
+    ) -> Dict[str, Any]:
+        """Triggered when a human explicitly denies a recommended fix."""
+        scenario = self.load_scenario(scenario_id)
+        anchor: AnchorNode = scenario["anchor"]
+        context = scenario.get("context", {})
+        
+        # Add feedback to context
+        if "rejected_actions" not in context:
+            context["rejected_actions"] = []
+        context["rejected_actions"].append(rejected_action_text)
+
+        # Re-trigger with same driver but updated context
+        updated_payload = self.run_pipeline(
+            scenario_id=scenario_id,
+            user_role=user_role,
+            force_refresh=True,
+            primary_llm=primary_llm,
+            bluesky_llm=bluesky_llm,
+            override_driver=primary_driver,
+            extra_context={"rejected_actions": context.get("rejected_actions", [])}
+        )["master_payload"]
+
+        return {
+            "status": "FIX_REJECTED_AND_REGENERATED",
+            "verified_driver": primary_driver,
+            "master_payload": updated_payload,
+        }
 

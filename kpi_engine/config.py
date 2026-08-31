@@ -1,4 +1,4 @@
-﻿"""
+"""
 KPI Storytelling Engine - System Configuration (v3.0 / Extended Edition v2.0)
 """
 
@@ -46,7 +46,7 @@ class SystemConfig(BaseModel):
     cost_per_1k_output_tokens_usd: float = 0.0100
     
         # LangGraph & Swarm Settings
-    llm_provider: str = "mock"  # options: 'openai', 'anthropic', 'gemini', 'ollama', 'mock'
+    llm_provider: str = "google"  # options: 'openai', 'anthropic', 'gemini', 'ollama', 'mock'
     openai_api_key: str = ""
     anthropic_api_key: str = ""
     google_api_key: str = ""

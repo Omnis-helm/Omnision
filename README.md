@@ -1,4 +1,4 @@
-﻿# âš¡ Omnision: Autonomous KPI Storytelling & Causal Governance Engine
+# âš¡ Omnision: Autonomous KPI Storytelling & Causal Governance Engine
 
 ![Version](https://img.shields.io/badge/version-3.0%20(v2.0%20Extended)-blue.svg)
 ![Status](https://img.shields.io/badge/status-Production%20Ready-success.svg)
@@ -148,18 +148,19 @@ To prevent the AI from giving generic advice, you must teach it your company's s
 Once your keys and KPIs are wired up, you can start the dashboard using `streamlit run app.py` and manage your operations entirely autonomously.
 
 
-## ⚠️ Pending Team Action Items (To-Do List)
+## 📂 System Architecture & Directory Structure
 
-The following major UX/UI updates are currently pending and must be implemented by the team:
+Omnision's modular codebase is organized within the `kpi_engine/` directory to separate concerns across detection, orchestration, governance, and user interface:
 
-### 1. Frontend UI Overhaul (Two-Column Interactive Table)
-The current UI layout makes the RCA and Solution hard to read. The frontend must be rewritten into a clean two-column interactive table:
-* **Left Column (RCA):** Displays the suggested Root Cause with an **Approve/Deny** button. Below this, there must be a text input field for a human to manually override or add a human RCA.
-* **Right Column (Fixes):** Displays the suggested Mitigation Action with an **Approve/Deny** button. This column must explicitly list expected metadata: *Expected Time to Fix*, *Expected Cost*, and *Expected Damage Reverted (KPI impact)*.
-* **Re-Trigger Logic:** The LLM Swarm should *only* be reconfigured and re-triggered if a user explicitly denies an RCA/Fix, or if a human manually overrides them.
+*   **`pipeline.py` & `config.py`:** The central nervous system. `pipeline.py` orchestrates the flow from anomaly detection to graph construction, while `config.py` manages LLM economics, thresholds, and provider keys.
+*   **`ui/` (Streamlit Frontend):** Contains the highly-interactive two-column dashboard (`streamlit_app.py`). Features full RBAC support, dynamic human-in-the-loop manual RCA/Fix overrides, and clear cost/impact metadata parsing.
+*   **`suggester/` (LLM Swarm):** Houses the multi-agent `llm_swarm.py`. Built with extreme resilience, it features a self-healing 3-attempt auto-retry loop that automatically catches and corrects LLM JSON hallucination errors.
+*   **`graph/` & `causal/`:** Constructs the Directed Acyclic Graphs (DAGs) and executes mathematical pruning to enforce the "Cage".
+*   **`ml/` (Machine Learning):** Contains the underlying predictive models (`global_model.py`) and explainability layers (`shap_explainer.py`) that ground the LLM in statistical reality.
+*   **`data/` & `memory/`:** Manages standard logging schemas, mock data generation, and the FAISS Vector RAG `PlaybookVectorStore` for institutional memory.
+*   **`governor/` & `scoper/`:** Enforces enterprise rules, budgetary approvals (VP limits), and zero-leak security pruning (removing PII before LLM ingestion).
+*   **`api/` & `learning/`:** Exposes backend hooks and manages the continuous telemetry loop that ingests real-world execution deltas back into the FAISS memory banks.
 
-### 2. DevOps Operations View Explanation
-Currently, there is confusion around the "DevOps & Operations view" tab in the frontend. The team needs to clearly document or redesign this tab. *Context: This tab is currently intended to show the raw JSON payload and the simulated API payloads (e.g., LaunchDarkly toggles, AWS commands) that the Swarm would execute if the action was approved, allowing engineers to verify the technical blast radius before executing.*
+---
 
-### 3. LLM JSON Parsing Resilience (Workarounds)
-The Swarm occasionally throws a `Fallback: Error parsing LLM JSON` when Gemini wraps its output in conversational markdown or fails to adhere strictly to the JSON schema. While a regex stripper has been implemented, the team needs to build further workarounds or automatic retry logic if the JSON parser completely fails to extract the schema.
+> **Note:** The major architectural updates (Two-Column Interactive UI, Swarm Auto-Healing Retries, and the elimination of the old DevOps debug tab) have been successfully deployed in v3.0!

@@ -1,4 +1,4 @@
-﻿"""
+"""
 LangGraph Swarm Nodes - Multi-Agent Generator
 """
 import os
@@ -40,40 +40,49 @@ def _generate_proposal(state: AgentState, llm_provider: str, persona: str, layer
     if feedback:
         prompt += f"\nPrevious Supervisor Feedback: {feedback}\nAddress this feedback in your new solution."
         
-    response = llm.invoke(prompt)
+    max_retries = 3
+    retry_feedback = ""
     
-    try:
-        content = str(response.content).strip()
-        # Strip all possible markdown block variations
-        if content.startswith("```"):
-            lines = content.split("\n")
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines[-1].strip() == "```":
-                lines = lines[:-1]
-            content = "\n".join(lines).strip()
+    for attempt in range(max_retries):
+        current_prompt = prompt
+        if retry_feedback:
+            current_prompt += f"\n\nERROR ON PREVIOUS ATTEMPT:\n{retry_feedback}\nYou MUST fix the JSON formatting error above and return ONLY valid JSON."
             
-        proposal = json.loads(content)
+        response = llm.invoke(current_prompt)
         
-        action_hash = hashlib.md5(proposal.get("action", "fallback").encode()).hexdigest()[:8].upper()
-        proposal["action_id"] = f"ACT-{action_hash}"
-        proposal["source_layer"] = layer
-        if "critic_verdict" not in proposal:
-            proposal["critic_verdict"] = "PENDING_SUPERVISOR"
+        try:
+            content = str(response.content).strip()
             
-    except Exception as e:
-        err_hash = hashlib.md5(str(e).encode()).hexdigest()[:8].upper()
-        proposal = {
-            "action_id": f"ACT-ERR-{err_hash}",
-            "action": f"Fallback: Error parsing LLM JSON ({llm_provider})",
-            "source_layer": layer,
-            "estimated_cost_usd": 0.0,
-            "time_to_impact_minutes": 0,
-            "raci_owner": "SYSTEM",
-            "approval_status": "ERROR",
-            "critic_verdict": f"JSON Parsing Error: {str(e)}"
-        }
-    return proposal
+            # Additional cleanup: find first { and last }
+            start_idx = content.find('{')
+            end_idx = content.rfind('}')
+            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                content = content[start_idx:end_idx+1]
+                
+            proposal = json.loads(content)
+            
+            action_hash = hashlib.md5(proposal.get("action", "fallback").encode()).hexdigest()[:8].upper()
+            proposal["action_id"] = f"ACT-{action_hash}"
+            proposal["source_layer"] = layer
+            if "critic_verdict" not in proposal:
+                proposal["critic_verdict"] = "PENDING_SUPERVISOR"
+            
+            return proposal
+            
+        except Exception as e:
+            retry_feedback = f"JSON Parsing Error: {str(e)}\nRaw Output received:\n{str(response.content)}"
+            if attempt == max_retries - 1:
+                err_hash = hashlib.md5(str(e).encode()).hexdigest()[:8].upper()
+                return {
+                    "action_id": f"ACT-ERR-{err_hash}",
+                    "action": f"Fallback: Error parsing LLM JSON ({llm_provider}) after {max_retries} attempts.",
+                    "source_layer": layer,
+                    "estimated_cost_usd": 0.0,
+                    "time_to_impact_minutes": 0,
+                    "raci_owner": "SYSTEM",
+                    "approval_status": "ERROR",
+                    "critic_verdict": f"JSON Parsing Error: {str(e)}"
+                }
 
 def rca_story_node(state: AgentState) -> Dict[str, Any]:
     """Generates the primary prescriptive RCA."""

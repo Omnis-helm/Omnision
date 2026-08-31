@@ -1,4 +1,4 @@
-﻿"""
+"""
 Omnision: Autonomous KPI Storytelling & Causal Governance Engine (v3.0)
 Interactive Executive Dashboard
 """
@@ -158,15 +158,23 @@ st.sidebar.metric("Active Layer 1 Playbooks", f"{len(engine.layers_store.layer_1
 st.title("Omnision")
 st.caption("Autonomous Root-Cause Diagnosis Â· Multivariate Causal Inference Â· Multi-Agent Governance Â· Continuous Learning")
 
+# Check if scenario changed, clear override_result if so
+if st.session_state.get("current_scenario") != selected_scenario_id:
+    st.session_state.current_scenario = selected_scenario_id
+    st.session_state.pop("override_result", None)
+
 # Execute Pipeline Safely
 try:
-    result = engine.run_pipeline(
-        scenario_id=selected_scenario_id,
-        user_role=active_role,
-        force_refresh=force_refresh,
-        primary_llm=primary_llm,
-        bluesky_llm=bluesky_llm,
-    )
+    if "override_result" in st.session_state and not force_refresh:
+        result = st.session_state.override_result
+    else:
+        result = engine.run_pipeline(
+            scenario_id=selected_scenario_id,
+            user_role=active_role,
+            force_refresh=force_refresh,
+            primary_llm=primary_llm,
+            bluesky_llm=bluesky_llm,
+        )
 except Exception as e:
     error_msg = str(e)
     if "API Key not found" in error_msg:
@@ -236,10 +244,9 @@ else:
     st.markdown("---")
 
     # Main Tab Navigation
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
         ":material/summarize: Executive narrative",
         ":material/account_tree: Causal DAG & math proofs",
-        ":material/terminal: DevOps & operations view",
         ":material/rocket_launch: Blue-sky challenger & solutions",
         ":material/psychology: Human RCA override sandbox",
         ":material/insights: Telemetry & learning loop",
@@ -255,50 +262,140 @@ else:
         with col2:
             st.markdown(f"**Business Risk Rating:** :red-badge[{master.executive_view.business_risk_level} RISK]")
         with col3:
-            st.markdown(f"**Primary Driver:** `{master.anchor_reference.primary_driver}`")
-            st.caption(f"Causal Weight: **{master.anchor_reference.causal_weight:.2f}** | Security: `{master.anchor_reference.security_applied}`")
+            st.markdown(f"**Causal Weight:** **{master.anchor_reference.causal_weight:.2f}** | Security: `{master.anchor_reference.security_applied}`")
 
-        st.subheader(":material/rule: Governed action recommendations")
-        st.caption("Cross-examined by The Critic against technical levers, SLA limits, and RACI budget ceilings.")
-
-        if master.executive_view.recommended_actions:
-            for i, action in enumerate(master.executive_view.recommended_actions):
-                with st.container():
-                    st.markdown(f"#### #{i+1} {action.action}")
-                    c1, c2, c3, c4 = st.columns([3, 2, 2, 3])
-                    with c1:
-                        st.write(f"**Source:** {action.source_layer}")
-                        st.write(f"**Critic Verdict:** `{action.critic_verdict}`")
-                    with c2:
-                        st.write(f"**Est. Cost:** `${action.estimated_cost_usd:,.2f}`")
-                        st.write(f"**Time-to-Impact:** `{action.time_to_impact_minutes} mins`")
-                    with c3:
-                        st.write(f"**RACI Owner:** `{action.raci_owner}`")
-                        if "action_status" not in st.session_state:
-                            st.session_state["action_status"] = {}
-                        current_status = st.session_state["action_status"].get(action.action_id, action.approval_status)
-                        st.markdown(f"**Approval Status:**")
-                        badge_color = "orange"
-                        if current_status == "APPROVED": badge_color = "green"
-                        elif current_status == "REJECTED": badge_color = "red"
+        st.markdown("---")
+        
+        # Two-column interactive table
+        rca_col, fix_col = st.columns(2)
+        
+        with rca_col:
+            st.markdown("### 🔍 Root Cause Analysis (RCA)")
+            st.info(f"**Suggested Root Cause:**\n\n{master.anchor_reference.primary_driver}")
+            
+            # RCA Actions
+            r1, r2 = st.columns(2)
+            with r1:
+                if st.button(":material/check_circle: Approve RCA", key="approve_rca", use_container_width=True):
+                    st.success("RCA Approved.")
+            with r2:
+                if st.button(":material/cancel: Deny RCA", key="deny_rca", use_container_width=True):
+                    # Trigger RCA Invalid Cascade (promote next node if any)
+                    primary_node_id = surviving_nodes[0].node_id if surviving_nodes else (scored_nodes[0][0].node_id if scored_nodes else "NODE-SYS-101")
+                    next_node_id = surviving_nodes[1].node_id if len(surviving_nodes) > 1 else None
+                    if next_node_id:
+                        res = engine.handle_human_rca_override(
+                            scenario_id=selected_scenario_id,
+                            demoted_node_id=primary_node_id,
+                            promoted_node_id=next_node_id,
+                            user_role=active_role,
+                            primary_llm=primary_llm,
+                            bluesky_llm=bluesky_llm,
+                        )
+                        new_result = dict(result)
+                        new_result["master_payload"] = res["master_payload"]
+                        new_result["surviving_evidence"] = [res["verified_driver"]] + [n for n in new_result.get("surviving_evidence", []) if n.node_id != res["verified_driver"].node_id and n.node_id != primary_node_id and n.node_id != next_node_id]
+                        st.session_state.override_result = new_result
                         
-                        st.markdown(f":{badge_color}-badge[{current_status}]")
-                    with c4:
-                        st.write("**Continuous Learning Feedback:**")
-                        def set_approval_status(a_id, layer, status):
-                            st.session_state["action_status"][a_id] = status
-                            engine.trust_tuner.record_feedback(a_id, layer, "ACCEPT" if status == "APPROVED" else "REJECT")
+                        st.session_state.engine = engine  # Ensure state is updated
+                        st.success("RCA Denied. Swarm regenerated with next best evidence.")
+                        st.rerun()
+                    else:
+                        st.error("No alternative evidence nodes available to promote.")
+                        
+            st.markdown("<br><br><br>", unsafe_allow_html=True)
+            st.markdown("---")
+            st.markdown("#### Manual RCA Override")
+            custom_rca = st.text_input("Inject Human Knowledge:", placeholder="Enter verified root cause...", key="custom_rca_input")
+            if st.button("Submit Manual RCA", use_container_width=True):
+                if custom_rca:
+                    primary_node_id = surviving_nodes[0].node_id if surviving_nodes else (scored_nodes[0][0].node_id if scored_nodes else "NODE-SYS-101")
+                    res = engine.handle_human_rca_override(
+                        scenario_id=selected_scenario_id,
+                        demoted_node_id=primary_node_id,
+                        custom_injected_text=custom_rca,
+                        user_role=active_role,
+                        primary_llm=primary_llm,
+                        bluesky_llm=bluesky_llm,
+                    )
+                    new_result = dict(result)
+                    new_result["master_payload"] = res["master_payload"]
+                    new_result["surviving_evidence"] = [res["verified_driver"]] + [n for n in new_result.get("surviving_evidence", []) if n.node_id != res["verified_driver"].node_id and n.node_id != primary_node_id]
+                    st.session_state.override_result = new_result
+                    
+                    st.session_state.engine = engine
+                    st.success("Manual RCA injected! Swarm regenerated.")
+                    st.rerun()
+
+
+        with fix_col:
+            st.markdown("### 🛠️ Mitigation Action (Fixes)")
+            if master.executive_view.recommended_actions:
+                for i, action in enumerate(master.executive_view.recommended_actions):
+                    st.success(f"**Suggested Fix:**\n\n{action.action}")
+                    
+                    st.markdown("**Expected Impact & Cost:**")
+                    st.markdown(f"- ⏳ **Time to Fix:** `{action.time_to_impact_minutes} mins`")
+                    st.markdown(f"- 💰 **Cost:** `${action.estimated_cost_usd:,.2f}`")
+                    st.markdown(f"- 📈 **Damage Reverted:** `{action.expected_damage_reverted or 'Unknown'}`")
+                    
+                    f1, f2 = st.columns(2)
+                    with f1:
+                        if st.button(":material/check_circle: Approve Fix", key=f"approve_fix_{i}", use_container_width=True):
+                            st.success("Fix Approved for execution.")
+                    with f2:
+                        if st.button(":material/cancel: Deny Fix", key=f"deny_fix_{i}", use_container_width=True):
+                            primary_driver = surviving_nodes[0] if surviving_nodes else (scored_nodes[0][0] if scored_nodes else None)
+                            res = engine.handle_rejected_fix(
+                                scenario_id=selected_scenario_id,
+                                primary_driver=primary_driver,
+                                rejected_action_text=action.action,
+                                user_role=active_role,
+                                primary_llm=primary_llm,
+                                bluesky_llm=bluesky_llm,
+                            )
+                            new_result = dict(result)
+                            new_result["master_payload"] = res["master_payload"]
+                            st.session_state.override_result = new_result
                             
-                        fb_col1, fb_col2 = st.columns(2)
-                        with fb_col1:
-                            st.button(":material/check_circle: Accept", key=f"btn_acc_{action.action_id}_{i}", 
-                                      on_click=set_approval_status, args=(action.action_id, action.source_layer or "", "APPROVED"))
-                        with fb_col2:
-                            st.button(":material/cancel: Reject", key=f"btn_rej_{action.action_id}_{i}", 
-                                      on_click=set_approval_status, args=(action.action_id, action.source_layer or "", "REJECTED"))
-                    st.write("")
-        else:
-            st.info("No approved actions generated.")
+                            st.session_state.engine = engine
+                            st.success("Fix Denied. Swarm regenerated new mitigation actions.")
+                            st.rerun()
+                    st.markdown("---")
+            else:
+                st.info("No recommended actions generated.")
+                
+            st.markdown("---")
+            st.markdown("#### Manual Fix Override")
+            st.caption("Inject Human Knowledge:")
+            custom_fix = st.text_input("custom_fix_input", placeholder="e.g. Rollback deployment to v2.1", label_visibility="collapsed")
+            if st.button("Submit Manual Fix", use_container_width=True):
+                if custom_fix:
+                    import time
+                    from kpi_engine.governor.schemas import RecommendedActionBlock
+                    new_action = RecommendedActionBlock(
+                        action_id=f"ACT-MANUAL-{int(time.time())}",
+                        action=custom_fix,
+                        estimated_cost_usd=0.0,
+                        time_to_impact_minutes=0,
+                        raci_owner="Human Operator",
+                        approval_status="PENDING_REVIEW",
+                        source_layer="Layer 1 - Human Override",
+                        critic_verdict="PASS - Manual Override",
+                        expected_damage_reverted="Unknown",
+                        requires_shadow_run=False
+                    )
+                    new_result = dict(result)
+                    if not new_result.get("master_payload"):
+                        pass # Safety check
+                    elif not new_result["master_payload"].executive_view.recommended_actions:
+                        new_result["master_payload"].executive_view.recommended_actions = [new_action]
+                    else:
+                        new_result["master_payload"].executive_view.recommended_actions.append(new_action)
+                    st.session_state.override_result = new_result
+                    st.success("Manual fix appended!")
+                    st.rerun()
+
 
     # ==================== TAB 2: CAUSAL DAG & MATH PROOFS ====================
     with tab2:
@@ -375,31 +472,10 @@ else:
             st.latex(r"\Delta R = P \cdot \Delta V + V \cdot \Delta P + \Delta P \cdot \Delta V")
             st.info("Price Effect: -$28,000.00 | Volume Effect: -$21,740.00 | Joint Interaction: +$1,739.20 | Total Î”R = -$48,000.80")
 
-    # ==================== TAB 3: DEVOPS & OPERATIONS VIEW ====================
+
+
+    # ==================== TAB 3: BLUE-SKY CHALLENGER & SOLUTIONS ====================
     with tab3:
-        st.subheader(":material/terminal: Federated DevOps & operations view")
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("### :material/engineering: Engineer view (Technical playbook)")
-            st.write(f"**Technical Root Cause:** `{master.engineer_view.technical_root_cause}`")
-            st.write(f"**Target Environment:** `{master.engineer_view.execution_playbook.target_environment}`")
-            st.code(master.engineer_view.execution_playbook.command, language="bash")
-            st.write("**Associated System Logs:**")
-            for log in master.engineer_view.system_logs:
-                st.caption(f"â€¢ `{log}`")
-
-        with col2:
-            st.markdown("### :material/settings: Operations view (SLA & routing)")
-            if master.ops_view:
-                st.write(f"**Operational Bottleneck:** {master.ops_view.operational_bottleneck}")
-                st.write(f"**SLA Impact:** {master.ops_view.sla_impact}")
-                st.write("**Mitigation Steps:**")
-                for step in master.ops_view.mitigation_steps:
-                    st.caption(f"â€¢ {step}")
-
-    # ==================== TAB 4: BLUE-SKY CHALLENGER & SOLUTIONS ====================
-    with tab4:
         st.subheader(":material/rocket_launch: Blue-sky LLM challenger & solution network (Â§3.2, Â§8)")
         st.markdown("""
         Omnision executes two parallel prompt channels simultaneously to expand ideas:
@@ -432,8 +508,8 @@ else:
                 if "Challenger" in d.source_layer:
                     st.error(f"**Action:** {d.action}\n\nâ€¢ **Layer:** {d.source_layer}\n\nâ€¢ **The Critic Rejection Verdict:** `{d.critic_verdict}`")
 
-    # ==================== TAB 5: HUMAN RCA OVERRIDE SANDBOX ====================
-    with tab5:
+    # ==================== TAB 4: HUMAN RCA OVERRIDE SANDBOX ====================
+    with tab4:
         st.subheader(":material/psychology: Human-in-the-loop RCA override & supervisor invalidation cascade")
         st.markdown("Auditing foundational diagnostic math: Demote incorrect causes, promote alternative evidence, or inject domain knowledge.")
 
@@ -451,7 +527,14 @@ else:
                         demoted_node_id=primary_node_id,
                         promoted_node_id=selected_noise_id,
                         user_role=active_role,
+                        primary_llm=primary_llm,
+                        bluesky_llm=bluesky_llm,
                     )
+                    new_result = dict(result)
+                    new_result["master_payload"] = res["master_payload"]
+                    new_result["surviving_evidence"] = [res["verified_driver"]] + [n for n in new_result.get("surviving_evidence", []) if n.node_id != res["verified_driver"].node_id and n.node_id != primary_node_id]
+                    st.session_state.override_result = new_result
+                    
                     st.success("Supervisor Invalidation Cascade complete! Swarm regenerated.")
                     st.json(res.get("recalibration_record", {}))
             else:
@@ -464,12 +547,19 @@ else:
                     demoted_node_id=primary_node_id,
                     custom_injected_text=custom_rca,
                     user_role=active_role,
+                    primary_llm=primary_llm,
+                    bluesky_llm=bluesky_llm,
                 )
+                new_result = dict(result)
+                new_result["master_payload"] = res["master_payload"]
+                new_result["surviving_evidence"] = [res["verified_driver"]] + [n for n in new_result.get("surviving_evidence", []) if n.node_id != res["verified_driver"].node_id and n.node_id != primary_node_id]
+                st.session_state.override_result = new_result
+                
                 st.success("Human verified root cause injected! Fresh actions generated.")
                 st.json(res.get("recalibration_record", {}))
 
-    # ==================== TAB 6: TELEMETRY & CONTINUOUS LEARNING ====================
-    with tab6:
+    # ==================== TAB 5: TELEMETRY & CONTINUOUS LEARNING ====================
+    with tab5:
         st.subheader(":material/insights: LLM economics, telemetry & continuous learning loop")
 
         m1, m2, m3, m4 = st.columns(4)

@@ -18,6 +18,7 @@ class RecommendedActionBlock(BaseModel):
     action: str
     estimated_cost_usd: float
     time_to_impact_minutes: int
+    expected_damage_reverted: Optional[str] = None
     raci_owner: str
     approval_status: str  # "AUTO_APPROVED", "PENDING_VP_APPROVAL", "DISCARDED"
     source_layer: Optional[str] = None
