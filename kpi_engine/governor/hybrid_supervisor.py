@@ -1,4 +1,4 @@
-"""
+﻿"""
 Hybrid Neuro-Symbolic Supervisor
 """
 import os
@@ -127,3 +127,32 @@ def llm_supervisor_node(state: AgentState) -> Dict[str, Any]:
 
 
 
+
+def blue_sky_critic_node(state: AgentState) -> Dict[str, Any]:
+    """Layer 2.5: Unconstrained Critic specifically for Blue-Sky ideas. Does NOT reject or loop."""
+    blue_sky_proposals = state.get("blue_sky_proposals", [])
+    if not blue_sky_proposals:
+        return {}
+        
+    latest_bs = blue_sky_proposals[-1]
+    provider = state.get("bluesky_llm_provider", "mock")
+    
+    if provider in ["mock", "local"] or getattr(CONFIG, "prefer_local_tools", True):
+        decision = "EVALUATED"
+        reason = "Sandbox Evaluation: Idea is creatively unrestricted but poses high operational risk."
+    else:
+        llm = get_llm(provider=provider, temperature=0.2)
+        prompt = (
+            f"You are the Omnision Reality Checker.\n"
+            f"Review this unconstrained Blue-Sky action: {latest_bs.get('action')}\n"
+            f"Provide a brief, 1-2 sentence constructive critique on its feasibility and risk. Do not reject it, just critique it.\n"
+        )
+        try:
+            response = llm.invoke(prompt)
+            reason = str(response.content).strip()
+        except Exception as e:
+            reason = f"Critic parsing error: {str(e)}"
+    
+    return {
+        "blue_sky_critique": reason
+    }

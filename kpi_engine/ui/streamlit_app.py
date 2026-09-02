@@ -1,4 +1,4 @@
-﻿"""
+"""
 Omnision: Autonomous KPI Storytelling & Causal Governance Engine (v3.0)
 Interactive Executive Dashboard
 """
@@ -492,23 +492,49 @@ else:
             grounded_actions = [a for a in master.executive_view.recommended_actions if "Challenger" not in a.source_layer]
             if grounded_actions:
                 for a in grounded_actions:
-                    st.success(f"**{a.action}**\n\nÃ¢â‚¬Â¢ Source: {a.source_layer}\n\nÃ¢â‚¬Â¢ Cost: `${a.estimated_cost_usd:,.2f}` | Time: `{a.time_to_impact_minutes}m`\n\nÃ¢â‚¬Â¢ Critic: `{a.critic_verdict}`")
+                    st.success(f"**{a.action}**\n\n• Source: {a.source_layer}\n\n• Cost: `${a.estimated_cost_usd:,.2f}` | Time: `{a.time_to_impact_minutes}m`\n\n• Critic: `{a.critic_verdict}`")
             else:
                 st.info("No grounded actions generated.")
 
         with col_ch2:
             st.markdown("### :material/lightbulb: Channel B: Blue-sky challenger solutions")
-            challenger_actions = [a for a in master.executive_view.recommended_actions if "Challenger" in a.source_layer]
-            if challenger_actions:
-                for a in challenger_actions:
-                    st.warning(f"**{a.action}** (Passed Critic)\n\nÃ¢â‚¬Â¢ Cost: `${a.estimated_cost_usd:,.2f}`\n\nÃ¢â‚¬Â¢ Approval: `{a.approval_status}`")
+            
+            blue_sky_proposals = result.get("raw_state", {}).get("blue_sky_proposals", [])
+            blue_sky_critique = result.get("raw_state", {}).get("blue_sky_critique", "No critique generated.")
+            
+            if blue_sky_proposals:
+                for idx, a in enumerate(blue_sky_proposals):
+                    st.warning(f"**{a.get('action')}**\n\n〰️ Cost: `${float(a.get('estimated_cost_usd', 0)):,.2f}`\n\n〰️ Approval: `{a.get('approval_status')}`")
+                    st.info(f"**The Reality Checker (Critic):** {blue_sky_critique}")
+                    
+                    b1, b2 = st.columns(2)
+                    with b1:
+                        if st.button(":material/refresh: Rerun Blue-Sky", key=f"rerun_bs_{idx}"):
+                            # In a full implementation this would directly invoke blue_sky_node and blue_sky_critic
+                            st.success("Blue-Sky rerolled! (Simulated)")
+                    with b2:
+                        if st.button(":material/upgrade: Promote to Main", key=f"promote_bs_{idx}"):
+                            from kpi_engine.governor.schemas import RecommendedActionBlock
+                            new_action = RecommendedActionBlock(
+                                action_id=a.get("action_id", "ACT-BS"),
+                                action=a.get("action"),
+                                estimated_cost_usd=float(a.get("estimated_cost_usd", 0)),
+                                time_to_impact_minutes=int(a.get("time_to_impact_minutes", 0)),
+                                expected_damage_reverted="Unknown",
+                                raci_owner=a.get("raci_owner", "System"),
+                                approval_status="PROMOTED_FROM_SANDBOX",
+                                source_layer="Layer 5 - Blue-Sky",
+                                model_confidence_weight=0.9,
+                                critic_verdict=blue_sky_critique,
+                                requires_shadow_run=True
+                            )
+                            new_result = dict(result)
+                            new_result["master_payload"].executive_view.recommended_actions.append(new_action)
+                            st.session_state.override_result = new_result
+                            st.success("Appended to Main Executive Tab!")
+                            st.rerun()
             else:
-                st.info("Challenger candidate was cross-examined by The Critic:")
-
-            # Show discarded challenger solutions
-            for d in master.discarded_candidates:
-                if "Challenger" in d.source_layer:
-                    st.error(f"**Action:** {d.get('action')}\n\n〰️ **Layer:** {d.get('source_layer')}\n\n〰️ **The Critic Rejection Verdict:** `SANDBOXED`")
+                st.info("No Blue-Sky actions generated.")
 
     # ==================== TAB 4: HUMAN RCA OVERRIDE SANDBOX ====================
     with tab4:
@@ -592,6 +618,7 @@ else:
                 )
                 st.success(f"New Playbook [{entry['id']}] ingested into Layer 1 Prescriptive Store!")
                 st.json(entry)
+
 
 
 

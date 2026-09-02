@@ -6,7 +6,7 @@ from typing import Dict, Any, List
 
 from kpi_engine.governor.llm_state import AgentState
 from kpi_engine.suggester.llm_swarm import rca_story_node, blue_sky_node
-from kpi_engine.governor.hybrid_supervisor import deterministic_validator_node, llm_supervisor_node
+from kpi_engine.governor.hybrid_supervisor import deterministic_validator_node, llm_supervisor_node, blue_sky_critic_node
 
 try:
     from langgraph.graph import StateGraph, END
@@ -48,16 +48,20 @@ def execute_langgraph_swarm(
             workflow.add_node("blue_sky_agent", blue_sky_node)
             workflow.add_node("deterministic_validator", deterministic_validator_node)
             workflow.add_node("llm_supervisor", llm_supervisor_node)
+            workflow.add_node("blue_sky_critic", blue_sky_critic_node)
             
             def route_supervisor(state: AgentState):
                 status = state.get("final_status")
                 if status == "APPROVED" or status == "MAX_ITERATIONS_REACHED":
                     return END
                 else:
-                    return "rca_agent"
+                    return "rca_agent" # Loop back to primary agent for fixes
                     
+            # Edges: rca_agent -> deterministic_validator
+            # rca_agent -> blue_sky_agent -> blue_sky_critic -> END
             workflow.add_edge("rca_agent", "blue_sky_agent")
-            workflow.add_edge("blue_sky_agent", "deterministic_validator")
+            workflow.add_edge("rca_agent", "deterministic_validator")
+            workflow.add_edge("blue_sky_agent", "blue_sky_critic")
             workflow.add_edge("deterministic_validator", "llm_supervisor")
             workflow.add_conditional_edges("llm_supervisor", route_supervisor)
             

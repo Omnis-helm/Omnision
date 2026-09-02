@@ -212,7 +212,7 @@ class KPIStorytellingEngine:
         )
 
         supervisor_msg = f"GRAPH_EXECUTED - Status: {final_state.get('final_status')} (Iter: {final_state.get('iteration_count')})"
-        # We wrap the single proposal into the views expected by Streamlit
+        # --- Multi-Action Extraction (Operational & Blue-Sky) ---
         from kpi_engine.governor.schemas import (
             ExecutiveViewBlock, 
             EngineerViewBlock, 
@@ -220,49 +220,68 @@ class KPIStorytellingEngine:
             RecommendedActionBlock,
             ExecutionPlaybookBlock
         )
+        
+        all_proposals = final_state.get("proposals", [])
+        
+        recommended_actions_list = []
+        
+        # Helper to process a proposal
+        def process_proposal(prop, is_blue_sky=False):
+            raw_action = prop.get("action", "No action returned")
+            blocked_keywords = ["drop table", "delete from", "rm -rf", "chmod 777", "grant all"]
+            if any(bad_word in raw_action.lower() for bad_word in blocked_keywords):
+                return None
+                
+            est_cost = float(prop.get("estimated_cost_usd", 0.0))
+            time_impact = int(prop.get("time_to_impact_minutes", 30))
+            
+            # Threshold checks
+            if est_cost > context.get("vp_approval_required_cost_usd", 5000.0) and not is_blue_sky:
+                return None
+            if time_impact > 1440 and not is_blue_sky: # Exclude actions taking more than 24 hours unless blue-sky
+                return None
+                
+            # If Blue-Sky, append critique from state
+            critique = final_state.get("blue_sky_critique", "Uncritiqued Sandbox Idea.") if is_blue_sky else final_state.get("supervisor_feedback", "N/A")
+            
+            return RecommendedActionBlock(
+                action_id=prop.get("action_id", "ACT-000"),
+                action=raw_action,
+                estimated_cost_usd=est_cost,
+                time_to_impact_minutes=time_impact,
+                expected_damage_reverted=f"{abs(anchor.variance_pct):.1f}% KPI Recovery",
+                raci_owner=prop.get("raci_owner", "System"),
+                approval_status=prop.get("approval_status", "PENDING_REVIEW"),
+                source_layer=prop.get("source_layer", "Layer 3"),
+                model_confidence_weight=0.95,
+                critic_verdict=critique,
+                requires_shadow_run=is_blue_sky
+            )
 
-        raw_action = approved_proposal.get("action", "No action returned")
-        # --- Simulated NeMo Guardrails (Output Behavioral Firewall) ---
-        blocked_keywords = ["drop table", "delete from", "rm -rf", "chmod 777", "grant all"]
-        if any(bad_word in raw_action.lower() for bad_word in blocked_keywords):
-            approval_status = "BLOCKED_BY_GUARDRAIL"
-            critic_verdict = "SECURITY VIOLATION: Malicious or destructive command detected in LLM output."
-            raw_action = "[ACTION REDACTED DUE TO SECURITY POLICY]"
-        else:
-            approval_status = approved_proposal.get("approval_status", "PENDING_REVIEW")
-            critic_verdict = final_state.get("supervisor_feedback", "N/A")
+        # Process main operational proposals
+        for prop in all_proposals:
+            action_block = process_proposal(prop, is_blue_sky=False)
+            if action_block:
+                recommended_actions_list.append(action_block)
+                
+        # If no valid actions, add a fallback
+        if not recommended_actions_list:
+            recommended_actions_list.append(RecommendedActionBlock(
+                action_id="ACT-ERR-001", action="No valid actions passed security and threshold checks.", estimated_cost_usd=0.0, time_to_impact_minutes=0, expected_damage_reverted="0%", raci_owner="SYSTEM", approval_status="ERROR", source_layer="System", model_confidence_weight=0.0, critic_verdict="All proposals rejected.", requires_shadow_run=False
+            ))
 
-        source_layer = approved_proposal.get("source_layer", "Layer 3")
-        requires_shadow_run = False
-        if "Layer 5" in source_layer or "Blue-Sky" in source_layer:
-            requires_shadow_run = True
-
-        rec_action = RecommendedActionBlock(
-            action_id=approved_proposal.get("action_id", "ACT-001"),
-            action=raw_action,
-            estimated_cost_usd=float(approved_proposal.get("estimated_cost_usd", 0.0)),
-            time_to_impact_minutes=int(approved_proposal.get("time_to_impact_minutes", 30)),
-            expected_damage_reverted=f"{abs(anchor.variance_pct):.1f}% KPI Recovery",
-            raci_owner=approved_proposal.get("raci_owner", "System"),
-            approval_status=approval_status,
-            source_layer=source_layer,
-            model_confidence_weight=0.95,
-            critic_verdict=critic_verdict,
-            requires_shadow_run=requires_shadow_run
-        )
-
-        financial_impact = float(context.get("financial_impact_usd", approved_proposal.get("estimated_cost_usd", 0.0) * 1.5))
+        financial_impact = float(context.get("financial_impact_usd", recommended_actions_list[0].estimated_cost_usd * 1.5))
         risk_level = "HIGH" if anchor.z_score >= 5.0 else "MEDIUM"
 
         exec_view = ExecutiveViewBlock(
             financial_impact_usd=financial_impact,
             business_risk_level=risk_level,
-            recommended_actions=[rec_action]
+            recommended_actions=recommended_actions_list
         )
 
         # Make Engineer and Ops Views dynamic based on the actual driver and context
         raw_cause = primary_driver.content if not primary_driver.is_masked else primary_driver.title
-        tech_root_cause = f"AI identified {raw_cause} via {approved_proposal.get('source_layer', 'Swarm')}"
+        tech_root_cause = f"AI identified {raw_cause} via Swarm"
         
         target_env = context.get("target_environment", "production-cluster")
         playbook_cmd = f"helm rollback {anchor.dimensions.get('domain', 'service')} --force" if "Stripe" in raw_cause else f"kubectl scale --replicas=5 deployment/{anchor.dimensions.get('category', 'app')}"
