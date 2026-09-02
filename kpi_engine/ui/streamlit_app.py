@@ -504,11 +504,7 @@ else:
             
             if blue_sky_proposals:
                 for idx, a in enumerate(blue_sky_proposals):
-                    st.warning(f"**{a.get('action')}**
-
-〰️ Cost: `${float(a.get('estimated_cost_usd', 0)):,.2f}`
-
-〰️ Approval: `{a.get('approval_status')}`")
+                    st.warning(f"**{a.get('action')}**\n\n〰️ Cost: `${float(a.get('estimated_cost_usd', 0)):,.2f}`\n\n〰️ Approval: `{a.get('approval_status')}`")
                     st.info(f"**The Reality Checker (Critic):** {blue_sky_critique}")
                     
                     b1, b2 = st.columns(2)
@@ -621,6 +617,7 @@ else:
                 )
                 st.success(f"New Playbook [{entry['id']}] ingested into Layer 1 Prescriptive Store!")
                 st.json(entry)
+
 
 
 
