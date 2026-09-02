@@ -45,8 +45,6 @@ st.sidebar.markdown("**Unified Architecture Compendium v3.0**")
 
 scenario_options = {
     "SCENARIO_1_STRIPE_GATEWAY_OUTAGE": "1. Stripe v4.1 Gateway Latency Outage (-12.4%)",
-    "SCENARIO_2_MULTIVARIATE_DAG_SHAP": "2. Interacting Price & Volume Drivers (DAG + SHAP)",
-    "SCENARIO_3_COLD_START_PHASED_HANDOVER": "3. Cold-Start 1-Click Mobile Checkout (<30d)",
     "SCENARIO_4_SECURITY_CLEARANCE_MATRIX": "4. Hybrid Security Matrix (Tier 1 & Tier 2)",
 }
 
@@ -54,45 +52,16 @@ selected_scenario_id = st.sidebar.selectbox(
     "Select Benchmark Scenario",
     options=list(scenario_options.keys()),
     format_func=lambda x: scenario_options[x],
-    key="omnision_scenario_selector",
+    index=0
 )
 
-# --- AUTHENTICATION MODULE ---
-def load_users():
-    users_path = PROJECT_ROOT / "kpi_engine" / "users.json"
-    if users_path.exists():
-        with open(users_path, "r", encoding="utf-8-sig") as f:
-            return json.load(f)
-    return {}
-
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.username = ""
-    st.session_state.active_role = "JUNIOR_ANALYST"
-
-if not st.session_state.logged_in:
-    st.title("ðŸ”’ Omnision Secure Login")
-    st.markdown("Please log in to access the Autonomous Governance Engine.")
-    users_db = load_users()
-    
-    with st.form("login_form"):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Login")
-        
-        if submitted:
-            if username in users_db and users_db[username]["password"] == password:
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                st.session_state.active_role = users_db[username]["role"]
-                st.rerun()
-            else:
-                st.error("Invalid username or password.")
+# --- AUTHENTICATION STUB ---
+if not st.session_state.get("logged_in", False):
     st.stop() # Halt execution until logged in
 
 # Logout Button
-st.sidebar.markdown(f"ðŸ‘¤ **User:** `{st.session_state.username}`")
-st.sidebar.markdown(f"ðŸ›¡ï¸ **Role:** `{st.session_state.active_role}`")
+st.sidebar.markdown(f":material/person: **User:** `{st.session_state.username}`")
+st.sidebar.markdown(f":material/badge: **Role:** `{st.session_state.active_role}`")
 if st.sidebar.button("Logout", use_container_width=True):
     st.session_state.logged_in = False
     st.rerun()
@@ -102,7 +71,7 @@ active_role = UserClearance[st.session_state.active_role]
 # --- END AUTHENTICATION ---
 
 # --- LLM CONFIGURATION (RBAC & SECURE SELECTION) ---
-st.sidebar.markdown("### ðŸ§  AI Core Engine Selection")
+st.sidebar.markdown("### :material/settings: AI Core Engine Selection")
 
 provider_options = ["openai", "anthropic", "gemini", "ollama", "mock"]
 public_providers = ["openai", "anthropic", "gemini"]
@@ -117,7 +86,7 @@ bluesky_llm = st.sidebar.selectbox("Blue-Sky LLM (Shadow Ideation)", options=pro
 
 if primary_llm in public_providers or bluesky_llm in public_providers:
     if st.session_state.active_role != "EXECUTIVE_VP":
-        st.sidebar.error("ðŸš¨ **Access Level Not Met:** Public Cloud LLMs (OpenAI, Anthropic, Gemini) risk leaking internal telemetry data. Only `EXECUTIVE_VP` tier can authorize public LLM connections. Please select a private hosted LLM like `ollama` or `mock`.")
+        st.sidebar.error("🛑 **Access Level Not Met:** Public Cloud LLMs (OpenAI, Anthropic, Gemini) risk leaking internal telemetry data. Only `EXECUTIVE_VP` tier can authorize public LLM connections. Please select a private hosted LLM like `ollama` or `mock`.")
         st.stop() # Hard stop execution to prevent data leak
 
 if not primary_llm or not bluesky_llm:
@@ -143,7 +112,7 @@ def check_api_key(provider):
 for provider in [primary_llm, bluesky_llm]:
     if not check_api_key(provider):
         st.title("Omnision")
-        st.error(f"ðŸš¨ **API Key invalid or not found for {provider}**")
+        st.error(f"🛑 **API Key invalid or not found for {provider}**")
         st.stop()
 
 st.sidebar.markdown("---")
@@ -208,7 +177,7 @@ if result.get("status") == "ABSTAINED":
         st.json(result.get("security_audit", {}))
         
     st.markdown("---")
-    st.info("Ã°Å¸â€™Â¡ Tip: Select **Executive VP** in the sidebar or click the button above to view the full cleared investigation.")
+    st.info("💡 Tip: Select **Executive VP** in the sidebar or click the button above to view the full cleared investigation.")
 
 else:
     # ==================== SUCCESS STATE: FULL MULTI-PERSONA EXPLORER ====================
@@ -246,12 +215,11 @@ else:
     st.markdown("---")
 
     # Main Tab Navigation
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        ":material/summarize: Executive narrative",
+    tab1, tab2, tab3, tab5 = st.tabs([
+        ":material/menu_book: Executive narrative",
         ":material/account_tree: Causal DAG & math proofs",
         ":material/rocket_launch: Blue-sky challenger & solutions",
-        ":material/psychology: Human RCA override sandbox",
-        ":material/insights: Telemetry & learning loop",
+        ":material/monitoring: Telemetry & learning"
     ])
 
     # ==================== TAB 1: EXECUTIVE VIEW ====================

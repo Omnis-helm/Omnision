@@ -33,6 +33,8 @@ def execute_langgraph_swarm(
         "primary_llm_provider": primary_llm,
         "bluesky_llm_provider": bluesky_llm,
         "proposals": [],
+        "blue_sky_proposals": [],
+        "blue_sky_critique": "",
         "supervisor_feedback": None,
         "iteration_count": 0,
         "final_status": "PENDING",
@@ -79,6 +81,9 @@ def execute_langgraph_swarm(
     
     blue_res = blue_sky_node(state)
     state.update(blue_res)
+    
+    bs_critic_res = blue_sky_critic_node(state)
+    state.update(bs_critic_res)
     
     det_res = deterministic_validator_node(state)
     state.update(det_res)
