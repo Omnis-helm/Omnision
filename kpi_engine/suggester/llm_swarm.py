@@ -1,4 +1,4 @@
-﻿"""
+"""
 LangGraph Swarm Nodes - Multi-Agent Generator
 """
 import os
@@ -158,14 +158,15 @@ def blue_sky_node(state: AgentState) -> Dict[str, Any]:
     # Flag it for shadow run
     proposal["requires_shadow_run"] = True
     
-    proposals = state.get("proposals", [])
-    proposals.append(proposal)
+    blue_sky_proposals = state.get("blue_sky_proposals", [])
+    blue_sky_proposals.append(proposal)
     
     return {
-        "proposals": proposals,
+        "blue_sky_proposals": blue_sky_proposals,
         "tokens_consumed": state.get("tokens_consumed", 0) + 500,
         "iteration_count": state.get("iteration_count", 0) + 1
     }
+
 
 
 

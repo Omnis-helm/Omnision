@@ -193,7 +193,7 @@ if result.get("status") == "ABSTAINED":
     with col_s1:
         st.markdown(f"### Ã¢Å¡Â Ã¯Â¸Â {result.get('reason')}")
         st.markdown("""
-        **Why this happened (Ã‚Â§2.3 / Ã‚Â§4.3 Hybrid Security Matrix):**
+        **Why this happened (§2.3 / §4.3 Hybrid Security Matrix):**
         * The primary root cause of this anomaly is classified under **Tier 1 Strategic Domain Pruning** (e.g. unannounced M&A, HR terminations, executive due diligence).
         * Your active role (`""" + selected_role_name + """`) lacks `EXECUTIVE_VP` clearance.
         * Under Omnision's mathematical integrity rules, rather than hallucinating a false secondary cause or presenting an incomplete equation, the engine **gracefully abstains**.
@@ -470,7 +470,7 @@ else:
         st.dataframe(pd.DataFrame(df_rows), width='stretch')
 
         if selected_scenario_id == "SCENARIO_2_MULTIVARIATE_DAG_SHAP":
-            st.markdown("#### :material/architecture: Multivariate DAG interaction math (Ã‚Â§2.5.3, Ã‚Â§5.3.4)")
+            st.markdown("#### :material/architecture: Multivariate DAG interaction math (§2.5.3, §5.3.4)")
             st.latex(r"\Delta R = P \cdot \Delta V + V \cdot \Delta P + \Delta P \cdot \Delta V")
             st.info("Price Effect: -$28,000.00 | Volume Effect: -$21,740.00 | Joint Interaction: +$1,739.20 | Total ÃŽâ€R = -$48,000.80")
 
@@ -478,38 +478,27 @@ else:
 
     # ==================== TAB 3: BLUE-SKY CHALLENGER & SOLUTIONS ====================
     with tab3:
-        st.subheader(":material/rocket_launch: Blue-sky LLM challenger & solution network (Ã‚Â§3.2, Ã‚Â§8)")
+        st.subheader(":material/rocket_launch: Blue-sky LLM challenger & solution network (\u00A73.2, \u00A78)")
         st.markdown("""
-        Omnision executes two parallel prompt channels simultaneously to expand ideas:
-        * **Channel A (Grounded Path):** Resolves the incident strictly using internal SOPs, runbooks, and active operational levers.
+        Omnision executes an unconstrained challenger path:
         * **Channel B (Challenger Path):** Acts as an unconstrained turnaround CEO generating out-of-the-box strategic fixes.
-        * **The Critic Governance:** An independent evaluator cross-examines all ideas against Layer 3 operational levers and Layer 4 budget limits before anything reaches a stakeholder.
+        * **The Critic Governance:** An independent evaluator cross-examines all ideas against operational levers and budget limits before anything reaches a stakeholder.
         """)
 
-        col_ch1, col_ch2 = st.columns(2)
-        with col_ch1:
-            st.markdown("### :material/shield: Channel A: Grounded solutions")
-            grounded_actions = [a for a in master.executive_view.recommended_actions if "Challenger" not in a.source_layer]
-            if grounded_actions:
-                for a in grounded_actions:
-                    st.success(f"**{a.action}**\n\nÃ¢â‚¬Â¢ Source: {a.source_layer}\n\nÃ¢â‚¬Â¢ Cost: `${a.estimated_cost_usd:,.2f}` | Time: `{a.time_to_impact_minutes}m`\n\nÃ¢â‚¬Â¢ Critic: `{a.critic_verdict}`")
-            else:
-                st.info("No grounded actions generated.")
-
-        with col_ch2:
-            st.markdown("### :material/lightbulb: Channel B: Blue-sky challenger solutions")
-            
-            blue_sky_proposals = result.get("raw_state", {}).get("blue_sky_proposals", [])
-            blue_sky_critique = result.get("raw_state", {}).get("blue_sky_critique", "No critique generated.")
-            
-            if blue_sky_proposals:
-                for idx, a in enumerate(blue_sky_proposals):
-                    st.warning(f"**{a.get('action')}**\n\n〰️ Cost: `${float(a.get('estimated_cost_usd', 0)):,.2f}`\n\n〰️ Approval: `{a.get('approval_status')}`")
-                    st.info(f"**The Reality Checker (Critic):** {blue_sky_critique}")
+        blue_sky_proposals = result.get("raw_state", {}).get("blue_sky_proposals", [])
+        blue_sky_critique = result.get("raw_state", {}).get("blue_sky_critique", "No critique generated.")
+        
+        if blue_sky_proposals:
+            for idx, a in enumerate(blue_sky_proposals):
+                col_idea, col_critic = st.columns(2)
+                
+                with col_idea:
+                    st.markdown("### :material/lightbulb: Blue-Sky Solution")
+                    st.warning(f"**{a.get('action')}**\n\n- Cost: `${float(a.get('estimated_cost_usd', 0)):,.2f}`\n\n- Approval: `{a.get('approval_status')}`")
                     
                     b1, b2 = st.columns(2)
                     with b1:
-                        if st.button(":material/refresh: Rerun Blue-Sky", key=f"rerun_bs_{idx}"):
+                        if st.button(":material/refresh: Rerun", key=f"rerun_bs_{idx}"):
                             st.success("Blue-Sky rerolled! (Simulated)")
                     with b2:
                         if st.button(":material/upgrade: Promote to Main", key=f"promote_bs_{idx}"):
@@ -532,58 +521,12 @@ else:
                             st.session_state.override_result = new_result
                             st.success("Appended to Main Executive Tab!")
                             st.rerun()
-            else:
-                st.info("No Blue-Sky actions generated.")
 
-    # ==================== TAB 4: HUMAN RCA OVERRIDE SANDBOX ====================
-    with tab4:
-        st.subheader(":material/psychology: Human-in-the-loop RCA override & supervisor invalidation cascade")
-        st.markdown("Auditing foundational diagnostic math: Demote incorrect causes, promote alternative evidence, or inject domain knowledge.")
-
-        override_type = st.radio("Override Strategy", ["Select from Discarded Noise", "Inject Brand New Root Cause"], key="rca_strat_rad")
-
-        primary_node_id = surviving_nodes[0].node_id if surviving_nodes else (scored_nodes[0][0].node_id if scored_nodes else "NODE-SYS-101")
-
-        if override_type == "Select from Discarded Noise":
-            if discarded_noise:
-                noise_options = {n.node_id: f"{n.node_id}: {n.title}" for n in discarded_noise}
-                selected_noise_id = st.selectbox("Promote Discarded Node to Primary Driver", options=list(noise_options.keys()), format_func=lambda x: noise_options[x])
-                if st.button(":material/rocket_launch: Trigger invalidation cascade & recalibrate", type="primary"):
-                    res = engine.handle_human_rca_override(
-                        scenario_id=selected_scenario_id,
-                        demoted_node_id=primary_node_id,
-                        promoted_node_id=selected_noise_id,
-                        user_role=active_role,
-                        primary_llm=primary_llm,
-                        bluesky_llm=bluesky_llm,
-                    )
-                    new_result = dict(result)
-                    new_result["master_payload"] = res["master_payload"]
-                    new_result["surviving_evidence"] = [res["verified_driver"]] + [n for n in new_result.get("surviving_evidence", []) if n.node_id != res["verified_driver"].node_id and n.node_id != primary_node_id]
-                    st.session_state.override_result = new_result
-                    
-                    st.success("Supervisor Invalidation Cascade complete! Swarm regenerated.")
-                    st.json(res.get("recalibration_record", {}))
-            else:
-                st.info("No discarded noise nodes in this scenario to promote.")
+                with col_critic:
+                    st.markdown("### :material/psychology: The Reality Checker")
+                    st.info(f"**Critic Verdict:**\n\n{blue_sky_critique}")
         else:
-            custom_rca = st.text_area("Custom Root Cause Diagnosis", value="Critical connection pool saturation on database cluster db-primary-01")
-            if st.button(":material/rocket_launch: Inject verified cause & regenerate governed actions", type="primary"):
-                res = engine.handle_human_rca_override(
-                    scenario_id=selected_scenario_id,
-                    demoted_node_id=primary_node_id,
-                    custom_injected_text=custom_rca,
-                    user_role=active_role,
-                    primary_llm=primary_llm,
-                    bluesky_llm=bluesky_llm,
-                )
-                new_result = dict(result)
-                new_result["master_payload"] = res["master_payload"]
-                new_result["surviving_evidence"] = [res["verified_driver"]] + [n for n in new_result.get("surviving_evidence", []) if n.node_id != res["verified_driver"].node_id and n.node_id != primary_node_id]
-                st.session_state.override_result = new_result
-                
-                st.success("Human verified root cause injected! Fresh actions generated.")
-                st.json(res.get("recalibration_record", {}))
+            st.info("No Blue-Sky actions generated.")
 
     # ==================== TAB 5: TELEMETRY & CONTINUOUS LEARNING ====================
     with tab5:
@@ -617,6 +560,7 @@ else:
                 )
                 st.success(f"New Playbook [{entry['id']}] ingested into Layer 1 Prescriptive Store!")
                 st.json(entry)
+
 
 
 
