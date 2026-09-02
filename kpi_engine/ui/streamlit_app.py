@@ -269,7 +269,7 @@ else:
         rca_col, fix_col = st.columns(2)
         
         with rca_col:
-            st.markdown("### ðŸ” Root Cause Analysis (RCA)")
+            st.markdown("### :material/search: Root Cause Analysis (RCA)")
             st.info(f"**Suggested Root Cause:**\n\n{master.anchor_reference.primary_driver}")
             
             # RCA Actions
@@ -328,14 +328,14 @@ else:
 
 
         with fix_col:
-            st.markdown("### ðŸ› ï¸ Mitigation Action (Fixes)")
+            st.markdown("### :material/build: Mitigation Action (Fixes)")
             if master.executive_view.recommended_actions:
                 for i, action in enumerate(master.executive_view.recommended_actions):
                     st.success(f"**Suggested Fix:**\n\n{action.action}")
                     
                     st.markdown("**Expected Impact & Cost:**")
-                    st.markdown(f"- â³ **Time to Fix:** `{action.time_to_impact_minutes} mins`")
-                    st.markdown(f"- ðŸ’° **Cost:** `${action.estimated_cost_usd:,.2f}`")
+                    st.markdown(f"- ⏳ **Time to Fix:** `{action.time_to_impact_minutes} mins`")
+                    st.markdown(f"- 💸 **Cost:** `${action.estimated_cost_usd:,.2f}`")
                     st.markdown(f"- ðŸ“ˆ **Damage Reverted:** `{action.expected_damage_reverted or 'Unknown'}`")
                     
                     f1, f2 = st.columns(2)

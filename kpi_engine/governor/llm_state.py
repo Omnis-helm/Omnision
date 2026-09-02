@@ -16,6 +16,9 @@ class AgentState(TypedDict):
     
     # Swarm outputs
     proposals: List[Dict[str, Any]]
+    blue_sky_proposals: List[Dict[str, Any]]
+    blue_sky_critique: str
+    blue_sky_iteration: int
     
     # Governance loop
     supervisor_feedback: Optional[str]

@@ -100,12 +100,37 @@ def _generate_proposal(state: AgentState, llm_provider: str, persona: str, layer
         try:
             content = str(response.content).strip()
             
-            start_idx = content.find('{')
-            end_idx = content.rfind('}')
-            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-                content = content[start_idx:end_idx+1]
-                
-            proposal = json.loads(content)
+            # Robust regex extraction for JSON block
+            import re as std_re
+            import ast
+            match = std_re.search(r'\{.*\}', content, std_re.DOTALL)
+            if match:
+                content = match.group(0)
+            else:
+                raise ValueError("No JSON object found in response.")
+            
+            try:
+                proposal = json.loads(content)
+            except Exception:
+                try:
+                    cleaned = std_re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)', r'\1"\2"\3', content)
+                    cleaned = cleaned.replace("true", "True").replace("false", "False").replace("null", "None")
+                    proposal = ast.literal_eval(cleaned)
+                except Exception as ast_err:
+                    raise ValueError(f"Strict JSON and Forgiving AST parsing both failed. {str(ast_err)}")
+            
+            # Fix hallucinated keys
+            if "action" not in proposal:
+                for possible_key in ["recommended_action", "mitigation", "fix", "solution", "description", "action_text"]:
+                    if possible_key in proposal:
+                        proposal["action"] = proposal[possible_key]
+                        break
+                if "action" not in proposal:
+                    # Last resort: grab the first string value that looks long enough to be an action
+                    for k, v in proposal.items():
+                        if isinstance(v, str) and len(v) > 10:
+                            proposal["action"] = v
+                            break
             
             action_hash = hashlib.md5(proposal.get("action", "fallback").encode()).hexdigest()[:8].upper()
             proposal["action_id"] = f"ACT-{action_hash}"
@@ -119,12 +144,13 @@ def _generate_proposal(state: AgentState, llm_provider: str, persona: str, layer
             return proposal
             
         except Exception as e:
-            retry_feedback = f"JSON Parsing Error: {str(e)}\nRaw Output received:\n{str(response.content)}"
+            raw_content = str(response.content) if 'response' in locals() else "No response."
+            retry_feedback = f"Error: {str(e)}\nRaw Output:\n{raw_content}"
             if attempt == max_retries - 1:
                 err_hash = hashlib.md5(str(e).encode()).hexdigest()[:8].upper()
                 return {
                     "action_id": f"ACT-ERR-{err_hash}",
-                    "action": f"Fallback: Error parsing LLM JSON ({llm_provider}) after {max_retries} attempts.",
+                    "action": f"LLM Error: {str(e)}",
                     "source_layer": layer,
                     "estimated_cost_usd": 0.0,
                     "time_to_impact_minutes": 0,
@@ -151,7 +177,7 @@ def blue_sky_node(state: AgentState) -> Dict[str, Any]:
     """Generates unconventional, highly creative alternative ideas (Shadow Run)."""
     provider = state.get("bluesky_llm_provider", "mock")
     # Only run Blue-Sky on first iteration to save tokens
-    if state.get("iteration_count", 0) > 0:
+    if state.get("blue_sky_iteration", 0) > 0:
         return {}
         
     proposal = _generate_proposal(state, provider, "Blue-Sky Challenger (Creative, Unconstrained)", "Layer 5 - Blue-Sky", 0.9)
@@ -164,7 +190,7 @@ def blue_sky_node(state: AgentState) -> Dict[str, Any]:
     return {
         "blue_sky_proposals": blue_sky_proposals,
         "tokens_consumed": state.get("tokens_consumed", 0) + 500,
-        "iteration_count": state.get("iteration_count", 0) + 1
+        "blue_sky_iteration": state.get("blue_sky_iteration", 0) + 1
     }
 
 

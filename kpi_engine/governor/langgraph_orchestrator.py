@@ -37,6 +37,7 @@ def execute_langgraph_swarm(
         "blue_sky_critique": "",
         "supervisor_feedback": None,
         "iteration_count": 0,
+        "blue_sky_iteration": 0,
         "final_status": "PENDING",
         "tokens_consumed": 0
     }
