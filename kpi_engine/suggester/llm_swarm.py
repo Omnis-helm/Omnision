@@ -9,11 +9,58 @@ from kpi_engine.config import CONFIG
 from kpi_engine.governor.llm_state import AgentState
 import hashlib
 
+from kpi_engine.ml.local_ml_engine import LLMResponseCache
+
 def _generate_proposal(state: AgentState, llm_provider: str, persona: str, layer: str, temp: float) -> Dict[str, Any]:
-    llm = get_llm(provider=llm_provider, temperature=temp)
     anchor = state.get("anchor_context", {})
     evidence = state.get("causal_evidence", [])
     feedback = state.get("supervisor_feedback", "")
+    
+    anchor_metric = anchor.get("metric_name", "Unknown")
+    primary_driver = evidence[0].get("content", "Unknown") if evidence else "Unknown"
+
+    # Check Cache first if LLM Caching is enabled
+    if getattr(CONFIG, "enable_llm_cache", True) and not feedback:
+        cached = LLMResponseCache.get(anchor_metric, primary_driver, llm_provider, persona)
+        if cached:
+            return cached
+
+    # Fast Local/Mock prescriptives when provider is mock or local
+    if llm_provider in ["mock", "local"]:
+        if "Blue-Sky" in layer:
+            proposal = {
+                "action_id": "ACT-CHAL-501",
+                "action": "Migrate checkout cluster & edge routing to secondary failover infrastructure",
+                "source_layer": layer,
+                "estimated_cost_usd": 125000.0,
+                "time_to_impact_minutes": 120,
+                "raci_owner": "CTO / VP Infrastructure",
+                "approval_status": "PENDING_VP_APPROVAL",
+                "critic_verdict": "APPROVED_LOCAL"
+            }
+        else:
+            if "Stripe" in primary_driver or "Gateway" in primary_driver or "checkout" in anchor_metric.lower():
+                action_text = "Roll back Stripe v4.1 integration to v4.0 and re-route 15% traffic to Adyen backup"
+                cost = 4200.0
+            else:
+                action_text = "Execute automated resource scaling and clear service cache pools"
+                cost = 1500.0
+
+            proposal = {
+                "action_id": f"ACT-{hashlib.md5(action_text.encode()).hexdigest()[:8].upper()}",
+                "action": action_text,
+                "source_layer": layer,
+                "estimated_cost_usd": cost,
+                "time_to_impact_minutes": 30,
+                "raci_owner": "Platform Engineering",
+                "approval_status": "AUTO_APPROVED",
+                "critic_verdict": "APPROVED_LOCAL"
+            }
+        
+        LLMResponseCache.set(anchor_metric, primary_driver, llm_provider, persona, proposal)
+        return proposal
+
+    llm = get_llm(provider=llm_provider, temperature=temp)
     
     # --- DYNAMIC EXTERNAL WEB INTELLIGENCE AGENT (FinBERT) ---
     web_intelligence = ""
@@ -21,17 +68,17 @@ def _generate_proposal(state: AgentState, llm_provider: str, persona: str, layer
         try:
             from kpi_engine.governor.external_tools import WebIntelligenceTools
             web_agent = WebIntelligenceTools()
-            ticker = "AAPL" # Hardcoded proxy for demo purposes
-            news = f"Tech sector crashes as gateway outages spook investors regarding {anchor.get('metric_name', 'System')}."
-            report = web_agent.analyze_macro_event(ticker, news)
-            web_intelligence = f"\n\n[External Web Agent Report]:\n{report['synthesis']}\n"
+            ticker = "AAPL"
+            news = f"Tech sector crashes as gateway outages spook investors regarding {anchor_metric}."
+            report = web_agent.run_external_evaluation(news, ticker)
+            web_intelligence = f"\n\n[External Web Agent Report]:\n{report['llm_synthesis']}\n"
         except Exception as e:
             web_intelligence = f"\n\n[External Web Agent Failed]: {str(e)}\n"
 
     prompt = (
         f"You are the {persona}.\n"
-        f"KPI Impacted: {anchor.get('metric_name', 'Unknown')}\n"
-        f"Primary Driver: {evidence[0].get('content', 'Unknown') if evidence else 'Unknown'}\n"
+        f"KPI Impacted: {anchor_metric}\n"
+        f"Primary Driver: {primary_driver}\n"
         f"{web_intelligence}"
         f"Generate a robust operational solution.\n"
         f"You MUST return your response as a RAW, VALID JSON object with NO markdown formatting, NO intro text, and NO backticks.\n"
@@ -53,7 +100,6 @@ def _generate_proposal(state: AgentState, llm_provider: str, persona: str, layer
         try:
             content = str(response.content).strip()
             
-            # Additional cleanup: find first { and last }
             start_idx = content.find('{')
             end_idx = content.rfind('}')
             if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
@@ -67,6 +113,9 @@ def _generate_proposal(state: AgentState, llm_provider: str, persona: str, layer
             if "critic_verdict" not in proposal:
                 proposal["critic_verdict"] = "PENDING_SUPERVISOR"
             
+            if not feedback:
+                LLMResponseCache.set(anchor_metric, primary_driver, llm_provider, persona, proposal)
+
             return proposal
             
         except Exception as e:

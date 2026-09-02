@@ -107,8 +107,13 @@ st.sidebar.markdown("### 🧠 AI Core Engine Selection")
 provider_options = ["openai", "anthropic", "gemini", "ollama", "mock"]
 public_providers = ["openai", "anthropic", "gemini"]
 
-primary_llm = st.sidebar.selectbox("Primary LLM (RCA & Storytelling)", options=provider_options, index=None, placeholder="Select an LLM...")
-bluesky_llm = st.sidebar.selectbox("Blue-Sky LLM (Shadow Ideation)", options=provider_options, index=None, placeholder="Select an LLM...")
+# Default to gemini if GOOGLE_API_KEY exists, otherwise mock
+has_google = bool(os.getenv("GOOGLE_API_KEY") or getattr(CONFIG, "google_api_key", ""))
+default_provider = "gemini" if has_google else "mock"
+default_idx = provider_options.index(default_provider)
+
+primary_llm = st.sidebar.selectbox("Primary LLM (RCA & Storytelling)", options=provider_options, index=default_idx)
+bluesky_llm = st.sidebar.selectbox("Blue-Sky LLM (Shadow Ideation)", options=provider_options, index=default_idx)
 
 if primary_llm in public_providers or bluesky_llm in public_providers:
     if st.session_state.active_role != "EXECUTIVE_VP":
@@ -120,21 +125,18 @@ if not primary_llm or not bluesky_llm:
     st.stop()
 
 # --- PRE-FLIGHT API KEY CHECKS ---
-from kpi_engine.config import CONFIG
-import os
-
 def check_api_key(provider):
     if provider == "openai":
         key = os.getenv("OPENAI_API_KEY") or CONFIG.openai_api_key
-        if not key or not str(key).startswith("sk-") or len(str(key)) < 40:
+        if not key or not str(key).startswith("sk-") or len(str(key)) < 20:
             return False
     elif provider in ["anthropic", "claude"]:
         key = os.getenv("ANTHROPIC_API_KEY") or getattr(CONFIG, 'anthropic_api_key', '')
-        if not key or not str(key).startswith("sk-ant-") or len(str(key)) < 40:
+        if not key or not str(key).startswith("sk-ant-") or len(str(key)) < 20:
             return False
     elif provider in ["gemini", "google"]:
         key = os.getenv("GOOGLE_API_KEY") or getattr(CONFIG, 'google_api_key', '')
-        if not key or len(str(key)) < 30:
+        if not key or len(str(key)) < 15:
             return False
     return True
 

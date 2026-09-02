@@ -2,7 +2,7 @@
 Phase 1 & Phase 2: Human-in-the-Loop RCA Override & Semantic Recalibration (§2.5.4, §13)
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
 from kpi_engine.data.models import CandidateNode, CandidateNodeType, SecurityTier, UserClearance

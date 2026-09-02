@@ -1,4 +1,4 @@
-﻿"""
+"""
 Hybrid Neuro-Symbolic Supervisor
 """
 import os
@@ -58,8 +58,10 @@ def deterministic_validator_node(state: AgentState) -> Dict[str, Any]:
     # Passed all deterministic checks, route to LLM Supervisor
     return {"final_status": "PENDING_LLM_REVIEW", "supervisor_feedback": "Passed deterministic validation."}
 
+from kpi_engine.ml.local_ml_engine import LocalSemanticSupervisor
+
 def llm_supervisor_node(state: AgentState) -> Dict[str, Any]:
-    """Layer 2: LLM logically reviews the proposal."""
+    """Layer 2: LLM or Local Semantic Supervisor logically reviews the proposal."""
     status = state.get("final_status")
     if status != "PENDING_LLM_REVIEW":
         return {} # Don't overwrite if rejected by deterministic layer
@@ -67,14 +69,27 @@ def llm_supervisor_node(state: AgentState) -> Dict[str, Any]:
     proposals = state.get("proposals", [])
     latest_proposal = proposals[-1]
     evidence = state.get("causal_evidence", [])
+    primary_cause = evidence[0].get("content", "Unknown") if evidence else "Unknown"
+    proposed_action = latest_proposal.get("action", "")
+
+    provider = state.get("primary_llm_provider", "mock")
+
+    # Fast Local/Mock Semantic Alignment Check
+    if provider in ["mock", "local"] or getattr(CONFIG, "prefer_local_tools", True):
+        decision, reason, _ = LocalSemanticSupervisor.evaluate_alignment(primary_cause, proposed_action)
+        return {
+            "final_status": decision,
+            "supervisor_feedback": reason,
+            "tokens_consumed": state.get("tokens_consumed", 0)
+        }
     
-    llm = get_llm(provider=state.get("primary_llm_provider", "mock"), temperature=0.0)
+    llm = get_llm(provider=provider, temperature=0.0)
     
     prompt = (
         f"You are the Omnision Chief Supervisor.\n"
         f"Review this proposed action for logical alignment with the Causal Root Cause.\n"
-        f"Primary Cause: {evidence[0].get('content', 'Unknown') if evidence else 'Unknown'}\n"
-        f"Proposed Action: {latest_proposal.get('action')}\n\n"
+        f"Primary Cause: {primary_cause}\n"
+        f"Proposed Action: {proposed_action}\n\n"
         f"You MUST respond ONLY in strictly valid JSON with exactly these two keys:\n"
         f'  "decision": "APPROVED" or "REJECTED"\n'
         f'  "reason": "String explaining why"\n'

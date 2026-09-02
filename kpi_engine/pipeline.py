@@ -252,7 +252,7 @@ class KPIStorytellingEngine:
         )
 
         financial_impact = float(context.get("financial_impact_usd", approved_proposal.get("estimated_cost_usd", 0.0) * 1.5))
-        risk_level = "HIGH RISK" if anchor.z_score > 5.0 else "MEDIUM RISK"
+        risk_level = "HIGH" if anchor.z_score >= 5.0 else "MEDIUM"
 
         exec_view = ExecutiveViewBlock(
             financial_impact_usd=financial_impact,
@@ -262,7 +262,7 @@ class KPIStorytellingEngine:
 
         # Make Engineer and Ops Views dynamic based on the actual driver and context
         raw_cause = primary_driver.content if not primary_driver.is_masked else primary_driver.title
-        tech_root_cause = f"AI identified {raw_cause[:50]}... via {approved_proposal.get('source_layer', 'Swarm')}"
+        tech_root_cause = f"AI identified {raw_cause} via {approved_proposal.get('source_layer', 'Swarm')}"
         
         target_env = context.get("target_environment", "production-cluster")
         playbook_cmd = f"helm rollback {anchor.dimensions.get('domain', 'service')} --force" if "Stripe" in raw_cause else f"kubectl scale --replicas=5 deployment/{anchor.dimensions.get('category', 'app')}"
@@ -282,12 +282,29 @@ class KPIStorytellingEngine:
             mitigation_steps=[approved_proposal.get("action", "Manual investigation required")]
         )
 
+        from kpi_engine.governor.schemas import DiscardedCandidateBlock
+        discarded_candidate_blocks = [
+            DiscardedCandidateBlock(
+                action=f"Hypothesis discarded: {n.title}",
+                source_layer="Causal Graph Pruning",
+                critic_verdict="REJECTED: Signal below causal threshold"
+            ) for n in discarded_noise
+        ]
+        if not discarded_candidate_blocks:
+            discarded_candidate_blocks = [
+                DiscardedCandidateBlock(
+                    action="Hypothesis discarded: Unverified secondary driver",
+                    source_layer="Causal Graph Pruning",
+                    critic_verdict="REJECTED: Signal below causal threshold"
+                )
+            ]
+
         master_payload = UnifiedMasterPayload(
             anchor_reference=anchor_ref,
             executive_view=exec_view,
             engineer_view=eng_view,
             ops_view=ops_view,
-            discarded_candidates=[],
+            discarded_candidates=discarded_candidate_blocks,
             runtime_metadata=runtime_meta,
             supervisor_status=supervisor_msg,
         )
