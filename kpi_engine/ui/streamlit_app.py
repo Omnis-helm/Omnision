@@ -1,4 +1,4 @@
-"""
+﻿"""
 Omnision: Autonomous KPI Storytelling & Causal Governance Engine (v3.0)
 Interactive Executive Dashboard
 """
@@ -25,7 +25,7 @@ from kpi_engine.governor.schemas import UnifiedMasterPayload
 
 
 st.set_page_config(
-    page_title="Omnision â€” KPI Storytelling Engine",
+    page_title="Omnision Ã¢â‚¬â€ KPI Storytelling Engine",
     page_icon=":material/bolt:",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -71,7 +71,7 @@ if "logged_in" not in st.session_state:
     st.session_state.active_role = "JUNIOR_ANALYST"
 
 if not st.session_state.logged_in:
-    st.title("🔒 Omnision Secure Login")
+    st.title("ðŸ”’ Omnision Secure Login")
     st.markdown("Please log in to access the Autonomous Governance Engine.")
     users_db = load_users()
     
@@ -91,8 +91,8 @@ if not st.session_state.logged_in:
     st.stop() # Halt execution until logged in
 
 # Logout Button
-st.sidebar.markdown(f"👤 **User:** `{st.session_state.username}`")
-st.sidebar.markdown(f"🛡️ **Role:** `{st.session_state.active_role}`")
+st.sidebar.markdown(f"ðŸ‘¤ **User:** `{st.session_state.username}`")
+st.sidebar.markdown(f"ðŸ›¡ï¸ **Role:** `{st.session_state.active_role}`")
 if st.sidebar.button("Logout", use_container_width=True):
     st.session_state.logged_in = False
     st.rerun()
@@ -102,7 +102,7 @@ active_role = UserClearance[st.session_state.active_role]
 # --- END AUTHENTICATION ---
 
 # --- LLM CONFIGURATION (RBAC & SECURE SELECTION) ---
-st.sidebar.markdown("### 🧠 AI Core Engine Selection")
+st.sidebar.markdown("### ðŸ§  AI Core Engine Selection")
 
 provider_options = ["openai", "anthropic", "gemini", "ollama", "mock"]
 public_providers = ["openai", "anthropic", "gemini"]
@@ -117,7 +117,7 @@ bluesky_llm = st.sidebar.selectbox("Blue-Sky LLM (Shadow Ideation)", options=pro
 
 if primary_llm in public_providers or bluesky_llm in public_providers:
     if st.session_state.active_role != "EXECUTIVE_VP":
-        st.sidebar.error("🚨 **Access Level Not Met:** Public Cloud LLMs (OpenAI, Anthropic, Gemini) risk leaking internal telemetry data. Only `EXECUTIVE_VP` tier can authorize public LLM connections. Please select a private hosted LLM like `ollama` or `mock`.")
+        st.sidebar.error("ðŸš¨ **Access Level Not Met:** Public Cloud LLMs (OpenAI, Anthropic, Gemini) risk leaking internal telemetry data. Only `EXECUTIVE_VP` tier can authorize public LLM connections. Please select a private hosted LLM like `ollama` or `mock`.")
         st.stop() # Hard stop execution to prevent data leak
 
 if not primary_llm or not bluesky_llm:
@@ -143,7 +143,7 @@ def check_api_key(provider):
 for provider in [primary_llm, bluesky_llm]:
     if not check_api_key(provider):
         st.title("Omnision")
-        st.error(f"🚨 **API Key invalid or not found for {provider}**")
+        st.error(f"ðŸš¨ **API Key invalid or not found for {provider}**")
         st.stop()
 
 st.sidebar.markdown("---")
@@ -158,7 +158,7 @@ st.sidebar.metric("Active Layer 1 Playbooks", f"{len(engine.layers_store.layer_1
 
 # Main Header
 st.title("Omnision")
-st.caption("Autonomous Root-Cause Diagnosis Â· Multivariate Causal Inference Â· Multi-Agent Governance Â· Continuous Learning")
+st.caption("Autonomous Root-Cause Diagnosis Ã‚Â· Multivariate Causal Inference Ã‚Â· Multi-Agent Governance Ã‚Â· Continuous Learning")
 
 # Check if scenario changed, clear override_result if so
 if st.session_state.get("current_scenario") != selected_scenario_id:
@@ -180,20 +180,20 @@ try:
 except Exception as e:
     error_msg = str(e)
     if "API Key not found" in error_msg:
-        st.error(f"🚨 **Configuration Error:** {error_msg}")
+        st.error(f"ðŸš¨ **Configuration Error:** {error_msg}")
     else:
-        st.error(f"🚨 **Execution Error:** {error_msg}")
+        st.error(f"ðŸš¨ **Execution Error:** {error_msg}")
     st.stop()
 
 # ==================== HANDLE ABSTAINED STATE GRACEFULLY (WITHOUT GOING BLANK) ====================
 if result.get("status") == "ABSTAINED":
-    st.error("ðŸ›¡ï¸ **Omnision Security Boundary: Graceful Abstention Enforced**")
+    st.error("Ã°Å¸â€ºÂ¡Ã¯Â¸Â **Omnision Security Boundary: Graceful Abstention Enforced**")
     
     col_s1, col_s2 = st.columns([3, 2])
     with col_s1:
-        st.markdown(f"### âš ï¸ {result.get('reason')}")
+        st.markdown(f"### Ã¢Å¡Â Ã¯Â¸Â {result.get('reason')}")
         st.markdown("""
-        **Why this happened (Â§2.3 / Â§4.3 Hybrid Security Matrix):**
+        **Why this happened (Ã‚Â§2.3 / Ã‚Â§4.3 Hybrid Security Matrix):**
         * The primary root cause of this anomaly is classified under **Tier 1 Strategic Domain Pruning** (e.g. unannounced M&A, HR terminations, executive due diligence).
         * Your active role (`""" + selected_role_name + """`) lacks `EXECUTIVE_VP` clearance.
         * Under Omnision's mathematical integrity rules, rather than hallucinating a false secondary cause or presenting an incomplete equation, the engine **gracefully abstains**.
@@ -201,14 +201,14 @@ if result.get("status") == "ABSTAINED":
         def elevate_clearance():
             st.session_state["omnision_role_selector"] = "EXECUTIVE_VP"
             
-        st.button("ðŸ”“ Elevate Clearance to EXECUTIVE_VP", type="primary", on_click=elevate_clearance)
+        st.button("Ã°Å¸â€â€œ Elevate Clearance to EXECUTIVE_VP", type="primary", on_click=elevate_clearance)
 
     with col_s2:
-        st.markdown("### ðŸ”’ Security Audit Receipt")
+        st.markdown("### Ã°Å¸â€â€™ Security Audit Receipt")
         st.json(result.get("security_audit", {}))
         
     st.markdown("---")
-    st.info("ðŸ’¡ Tip: Select **Executive VP** in the sidebar or click the button above to view the full cleared investigation.")
+    st.info("Ã°Å¸â€™Â¡ Tip: Select **Executive VP** in the sidebar or click the button above to view the full cleared investigation.")
 
 else:
     # ==================== SUCCESS STATE: FULL MULTI-PERSONA EXPLORER ====================
@@ -272,7 +272,7 @@ else:
         rca_col, fix_col = st.columns(2)
         
         with rca_col:
-            st.markdown("### 🔍 Root Cause Analysis (RCA)")
+            st.markdown("### ðŸ” Root Cause Analysis (RCA)")
             st.info(f"**Suggested Root Cause:**\n\n{master.anchor_reference.primary_driver}")
             
             # RCA Actions
@@ -331,15 +331,15 @@ else:
 
 
         with fix_col:
-            st.markdown("### 🛠️ Mitigation Action (Fixes)")
+            st.markdown("### ðŸ› ï¸ Mitigation Action (Fixes)")
             if master.executive_view.recommended_actions:
                 for i, action in enumerate(master.executive_view.recommended_actions):
                     st.success(f"**Suggested Fix:**\n\n{action.action}")
                     
                     st.markdown("**Expected Impact & Cost:**")
-                    st.markdown(f"- ⏳ **Time to Fix:** `{action.time_to_impact_minutes} mins`")
-                    st.markdown(f"- 💰 **Cost:** `${action.estimated_cost_usd:,.2f}`")
-                    st.markdown(f"- 📈 **Damage Reverted:** `{action.expected_damage_reverted or 'Unknown'}`")
+                    st.markdown(f"- â³ **Time to Fix:** `{action.time_to_impact_minutes} mins`")
+                    st.markdown(f"- ðŸ’° **Cost:** `${action.estimated_cost_usd:,.2f}`")
+                    st.markdown(f"- ðŸ“ˆ **Damage Reverted:** `{action.expected_damage_reverted or 'Unknown'}`")
                     
                     f1, f2 = st.columns(2)
                     with f1:
@@ -402,7 +402,7 @@ else:
     # ==================== TAB 2: CAUSAL DAG & MATH PROOFS ====================
     with tab2:
         st.subheader(":material/account_tree: Localized causal DAG & mathematical proofs")
-        st.caption("Just-in-Time Graph-RAG: Bounded by The Cage ([-48h, +12h]), max 2 hops, and threshold pruning (W â‰¥ 0.65).")
+        st.caption("Just-in-Time Graph-RAG: Bounded by The Cage ([-48h, +12h]), max 2 hops, and threshold pruning (W Ã¢â€°Â¥ 0.65).")
 
         fig = go.Figure()
 
@@ -463,22 +463,22 @@ else:
                 "Title": node.title,
                 "Contextual Relevance (CR)": f"{cr:.3f}",
                 "Causal Impact (CI)": f"{ci:.3f}",
-                "Composite Weight W = CR Ã— CI": f"{w:.3f}",
+                "Composite Weight W = CR Ãƒâ€” CI": f"{w:.3f}",
                 "Counterfactual Tier": tier,
-                "Status": "Surviving Evidence (W â‰¥ 0.65)" if w >= 0.65 else "Discarded Noise (W < 0.65)",
+                "Status": "Surviving Evidence (W Ã¢â€°Â¥ 0.65)" if w >= 0.65 else "Discarded Noise (W < 0.65)",
             })
         st.dataframe(pd.DataFrame(df_rows), width='stretch')
 
         if selected_scenario_id == "SCENARIO_2_MULTIVARIATE_DAG_SHAP":
-            st.markdown("#### :material/architecture: Multivariate DAG interaction math (Â§2.5.3, Â§5.3.4)")
+            st.markdown("#### :material/architecture: Multivariate DAG interaction math (Ã‚Â§2.5.3, Ã‚Â§5.3.4)")
             st.latex(r"\Delta R = P \cdot \Delta V + V \cdot \Delta P + \Delta P \cdot \Delta V")
-            st.info("Price Effect: -$28,000.00 | Volume Effect: -$21,740.00 | Joint Interaction: +$1,739.20 | Total Î”R = -$48,000.80")
+            st.info("Price Effect: -$28,000.00 | Volume Effect: -$21,740.00 | Joint Interaction: +$1,739.20 | Total ÃŽâ€R = -$48,000.80")
 
 
 
     # ==================== TAB 3: BLUE-SKY CHALLENGER & SOLUTIONS ====================
     with tab3:
-        st.subheader(":material/rocket_launch: Blue-sky LLM challenger & solution network (Â§3.2, Â§8)")
+        st.subheader(":material/rocket_launch: Blue-sky LLM challenger & solution network (Ã‚Â§3.2, Ã‚Â§8)")
         st.markdown("""
         Omnision executes two parallel prompt channels simultaneously to expand ideas:
         * **Channel A (Grounded Path):** Resolves the incident strictly using internal SOPs, runbooks, and active operational levers.
@@ -492,7 +492,7 @@ else:
             grounded_actions = [a for a in master.executive_view.recommended_actions if "Challenger" not in a.source_layer]
             if grounded_actions:
                 for a in grounded_actions:
-                    st.success(f"**{a.action}**\n\nâ€¢ Source: {a.source_layer}\n\nâ€¢ Cost: `${a.estimated_cost_usd:,.2f}` | Time: `{a.time_to_impact_minutes}m`\n\nâ€¢ Critic: `{a.critic_verdict}`")
+                    st.success(f"**{a.action}**\n\nÃ¢â‚¬Â¢ Source: {a.source_layer}\n\nÃ¢â‚¬Â¢ Cost: `${a.estimated_cost_usd:,.2f}` | Time: `{a.time_to_impact_minutes}m`\n\nÃ¢â‚¬Â¢ Critic: `{a.critic_verdict}`")
             else:
                 st.info("No grounded actions generated.")
 
@@ -501,14 +501,14 @@ else:
             challenger_actions = [a for a in master.executive_view.recommended_actions if "Challenger" in a.source_layer]
             if challenger_actions:
                 for a in challenger_actions:
-                    st.warning(f"**{a.action}** (Passed Critic)\n\nâ€¢ Cost: `${a.estimated_cost_usd:,.2f}`\n\nâ€¢ Approval: `{a.approval_status}`")
+                    st.warning(f"**{a.action}** (Passed Critic)\n\nÃ¢â‚¬Â¢ Cost: `${a.estimated_cost_usd:,.2f}`\n\nÃ¢â‚¬Â¢ Approval: `{a.approval_status}`")
             else:
                 st.info("Challenger candidate was cross-examined by The Critic:")
 
             # Show discarded challenger solutions
             for d in master.discarded_candidates:
                 if "Challenger" in d.source_layer:
-                    st.error(f"**Action:** {d.action}\n\nâ€¢ **Layer:** {d.source_layer}\n\nâ€¢ **The Critic Rejection Verdict:** `{d.critic_verdict}`")
+                    st.error(f"**Action:** {d.get('action')}\n\n〰️ **Layer:** {d.get('source_layer')}\n\n〰️ **The Critic Rejection Verdict:** `SANDBOXED`")
 
     # ==================== TAB 4: HUMAN RCA OVERRIDE SANDBOX ====================
     with tab4:
@@ -575,7 +575,7 @@ else:
             st.metric("Semantic Cache Status", "HIT (0ms / $0)" if master.runtime_metadata.cache_hit else "MISS (Live LLM)")
 
         st.markdown("### :material/smart_toy: Model confidence trust weights ($W_m$)")
-        st.caption("Dynamically tuned via user feedback signals: W_m^(t+1) = W_m^(t) * (1 - Î·) on repeated rejections.")
+        st.caption("Dynamically tuned via user feedback signals: W_m^(t+1) = W_m^(t) * (1 - ÃŽÂ·) on repeated rejections.")
         st.bar_chart(pd.DataFrame(list(engine.supervisor.swarm.model_weights.items()), columns=["Agent Model", "Trust Weight Wm"]).set_index("Agent Model"))
 
         st.markdown("### :material/history_edu: Dynamic playbook appends (Layer 1 ingestion)")
@@ -592,6 +592,8 @@ else:
                 )
                 st.success(f"New Playbook [{entry['id']}] ingested into Layer 1 Prescriptive Store!")
                 st.json(entry)
+
+
 
 
 
