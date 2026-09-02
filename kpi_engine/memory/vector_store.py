@@ -1,15 +1,28 @@
 """
 Just-in-Time Graph-RAG Vector Store (Memory Module)
-Uses FAISS to embed and retrieve historical incidents.
+Uses FAISS or LocalVectorStore to embed and retrieve historical incidents without requiring cloud API calls.
 """
 import os
 import json
 from datetime import datetime, timezone
 from typing import List, Dict, Any
-from langchain_community.vectorstores import FAISS
-from langchain_core.documents import Document
 
 from kpi_engine.config import CONFIG
+from kpi_engine.ml.local_ml_engine import LocalVectorStore, ThreadSafeModelLoader
+
+try:
+    from langchain_community.vectorstores import FAISS
+    from langchain_core.documents import Document
+    LANGCHAIN_FAISS_AVAILABLE = True
+except ImportError:
+    FAISS = None
+    LANGCHAIN_FAISS_AVAILABLE = False
+
+    class Document:
+        def __init__(self, page_content: str, metadata: dict):
+            self.page_content = page_content
+            self.metadata = metadata
+
 
 class PlaybookVectorStore:
     def __init__(self):
@@ -18,22 +31,30 @@ class PlaybookVectorStore:
         self._seed_store_if_empty()
 
     def _init_embeddings(self):
-        api_key = os.getenv("OPENAI_API_KEY", CONFIG.openai_api_key)
-        if api_key and api_key != "your_openai_api_key_here":
-            from langchain_openai import OpenAIEmbeddings
-            self.embeddings = OpenAIEmbeddings(api_key=api_key)
-        else:
+        # Prefer local embeddings / local vector store when prefer_local_tools is True
+        api_key = os.getenv("OPENAI_API_KEY", getattr(CONFIG, "openai_api_key", ""))
+        if not getattr(CONFIG, "prefer_local_tools", True) and api_key and api_key != "your_openai_api_key_here":
             try:
-                from langchain_huggingface import HuggingFaceEmbeddings
-                self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-            except ImportError:
-                from langchain_core.embeddings import Embeddings
-                class MockEmbeddings(Embeddings):
-                    def embed_documents(self, texts):
-                        return [[0.1]*384 for _ in texts]
-                    def embed_query(self, text):
-                        return [0.1]*384
-                self.embeddings = MockEmbeddings()
+                from langchain_openai import OpenAIEmbeddings
+                self.embeddings = OpenAIEmbeddings(api_key=api_key)
+                return
+            except Exception:
+                pass
+        
+        try:
+            from langchain_huggingface import HuggingFaceEmbeddings
+            loader = ThreadSafeModelLoader()
+            self.embeddings = loader.get_or_load_model(
+                "hf_embeddings", 
+                lambda: HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+            )
+        except Exception:
+            class MockEmbeddings:
+                def embed_documents(self, texts):
+                    return [[0.1]*384 for _ in texts]
+                def embed_query(self, text):
+                    return [0.1]*384
+            self.embeddings = MockEmbeddings()
 
     def _seed_store_if_empty(self):
         """Pre-seeds the vector store with historical playbook incidents and known noise."""
@@ -60,8 +81,14 @@ class PlaybookVectorStore:
             )
         ]
         
-        # Ingest into FAISS
-        self.vector_store = FAISS.from_documents(historical_docs, self.embeddings)
+        # Use LocalVectorStore if FAISS is unavailable or prefer_local_tools is True
+        if getattr(CONFIG, "prefer_local_tools", True) or not LANGCHAIN_FAISS_AVAILABLE:
+            self.vector_store = LocalVectorStore(historical_docs)
+        else:
+            try:
+                self.vector_store = FAISS.from_documents(historical_docs, self.embeddings)
+            except Exception:
+                self.vector_store = LocalVectorStore(historical_docs)
 
     def append_incident(self, text: str, metadata: dict):
         """Dynamically appends a new incident (or noise signature) to the Vector DB."""
@@ -69,7 +96,8 @@ class PlaybookVectorStore:
         if self.vector_store:
             self.vector_store.add_documents([doc])
         else:
-            self.vector_store = FAISS.from_documents([doc], self.embeddings)
+            self._seed_store_if_empty()
+            self.vector_store.add_documents([doc])
 
     def search_similar_incidents(self, query: str, k: int = 2) -> List[Dict[str, Any]]:
         """Retrieves top K similar historical incidents or noise profiles."""
@@ -91,3 +119,4 @@ class PlaybookVectorStore:
             })
             
         return incidents
+

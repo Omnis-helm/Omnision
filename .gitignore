@@ -1,4 +1,4 @@
-﻿__pycache__/
+__pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
@@ -8,5 +8,7 @@
 venv/
 env/
 
-# Keep API keys secure
+# Keep API keys & binary checkpoints secure
+.env
+*.pkl
 

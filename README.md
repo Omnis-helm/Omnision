@@ -1,166 +1,402 @@
-# âš¡ Omnision: Autonomous KPI Storytelling & Causal Governance Engine
+# ⚡ Omnision: Autonomous KPI Storytelling & Causal Governance Engine
 
 ![Version](https://img.shields.io/badge/version-3.0%20(v2.0%20Extended)-blue.svg)
 ![Status](https://img.shields.io/badge/status-Production%20Ready-success.svg)
 ![Architecture](https://img.shields.io/badge/Architecture-Neuro--Symbolic-purple.svg)
+![ML Engine](https://img.shields.io/badge/ML%20Engine-XGBoost%20%2B%20SHAP-green.svg)
+![Local Acceleration](https://img.shields.io/badge/Performance-Zero--Credit%20Local%20Caching-orange.svg)
 
 **Omnision** is an enterprise-grade autonomous, closed-loop technical architecture that resolves business KPI anomalies. It drives incidents from **Shallow Detection** to **Causal Diagnosis**, **Multi-Layered Solution Synthesis**, **Multi-Agent Governance**, and **Closed-Loop Continuous Learning**.
 
 ---
 
-## ðŸ§  The What, Why, and How
+## 📋 Table of Contents
+> 📘 **Dashboard Operational Manual:** For a step-by-step user guide to operating the Streamlit Web Interface, refer to [manual.md](file:///c:/Users/arind/OneDrive/Documents/project_summer/accenture/Omnision/manual.md).
 
-### What is Omnision?
-Omnision is a self-governing analytics pipeline. Traditional dashboards (like Tableau or Datadog) simply tell you that a metric is broken. Omnision autonomously investigates *why* it broke, scopes the blast radius, enforces enterprise data security, and deploys a multi-agent LLM swarm to generate a mathematically sound, budget-constrained mitigation plan.
-
-### Why Omnision?
-Generative AI often suffers from hallucinations when given raw, unconstrained data. Omnision solves this by using a **Neuro-Symbolic Architecture**. It intentionally avoids passing raw data directly to Large Language Models. Instead, it uses rigorous, deterministic data science (Z-scores, SHAP values, Directed Acyclic Graphs) to build a tightly constrained "cage" of verified evidence. The LLM is only permitted to operate *inside* this mathematically verified cage.
-
----
-
-## ðŸ” Multi-LLM Architecture & RBAC Security (v3.0)
-
-Omnision now features a heavily modular, highly secure dual-node LangGraph orchestration engine designed for zero-leak data deployments.
-
-### 1. Dual-Node Splitting (Primary vs Blue-Sky LLMs)
-Omnision breaks the monolithic Swarm into two distinct, parallel AI personas:
-* **The Prescriptive RCA Node:** Diagnoses the root cause using standard operating procedures.
-* **The Blue-Sky Ideation Node:** Unrestrained, creative shadow-ideation for unconventional fixes.
-
-You can configure **different LLM models for each node simultaneously** via the Streamlit UI (e.g., Use cheap local `Ollama` for standard RCA, but dispatch `GPT-4o` for the complex Blue-Sky creativity).
-
-### 2. Strict Role-Based Access Control (RBAC) & Data Leak Prevention
-Omnision enforces severe access controls on the frontend to prevent junior staff from accidentally leaking PII, financial data, or telemetry logs to public cloud providers.
-* Only the **`EXECUTIVE_VP`** can authorize and unlock cloud models (OpenAI, Anthropic, Gemini).
-* **`SENIOR_ENGINEER`** and **`JUNIOR_ANALYST`** tiers are mathematically hard-locked to local, privately-hosted open-source models like `Ollama` or `mock`.
-
-### 3. Immediate Pre-Flight API Validation
-The frontend intercepts and validates the structure of your API keys before running the pipeline. If a key is missing or formatted like garbage (e.g. `your_openai_api_key_here`), it halts execution and safely pops an `API Key Invalid or Not Found` error to the user without crashing the server.
+1. [Architectural Principles & Philosophy](#-architectural-principles--philosophy)
+2. [Core Technology Stack](#-core-technology-stack)
+3. [Working Mechanics & Pipeline Architecture (8 Stages)](#-working-mechanics--pipeline-architecture-8-stages)
+4. [Performance Optimization & Local ML Acceleration](#-performance-optimization--local-ml-acceleration)
+5. [In-Depth Scenario Walkthroughs (Operational Executions)](#-in-depth-scenario-walkthroughs-operational-executions)
+6. [Security & Role-Based Access Control (RBAC)](#-security--role-based-access-control-rbac)
+7. [Environment Configuration & API Setup](#%EF%B8%8F-environment-configuration--api-setup)
+8. [Installation & Quickstart Guide](#-installation--quickstart-guide)
+9. [Automated Test Suite & Verification Matrix](#-automated-test-suite--verification-matrix)
+10. [Repository Directory Sitemap](#-repository-directory-sitemap)
 
 ---
 
-## ðŸ”— Neuro-Symbolic Bounding: How Omnision Stops AI Hallucinations
+## 🧠 Architectural Principles & Philosophy
 
-To prevent the AI from making wild, unverified logical leaps, Omnision utilizes strict data structures and mathematical pruning *before* the prompt ever reaches the LLM.
+### 1. The Core Problem: Why Dashboard Alerts Fail
+Traditional dashboards (like Datadog, Tableau, or Grafana) inform you *that* a metric has breached a threshold, but leave human engineers to manually inspect logs, search Slack channels, and infer root causes under pressure. Conversely, unconstrained Generative AI often hallucinates false causes or recommends dangerous, budget-violating mitigation actions when fed raw, uncurated log streams.
 
-### 1. The A* (Anchor) Anomaly (Ground Zero)
-When a KPI breaches its mathematical threshold, the engine isolates it as the **`AnchorNode`** (A*). Everything in the system centers around A*. It serves as the absolute "Ground Zero" node from which the rest of the causal investigation is rooted.
+### 2. The Solution: Neuro-Symbolic Bounding ("Caging the LLM")
+Omnision resolves AI hallucinations through a **Neuro-Symbolic Architecture**:
+- **Symbolic Math Layer (Ground Truth):** Strict statistical algorithms (Z-scores, EWMA, Directed Acyclic Graphs, XGBoost, and SHAP values) filter noise, prune irrelevant states, and isolate mathematically proven causal evidence.
+- **Neural LLM Layer (Reasoning & Narrative):** The Large Language Model is **caged** inside this mathematically verified evidence pool. It is prohibited from reasoning outside the DAG, ensuring 100% grounded diagnostic narratives and actionable playbooks.
 
-### 2. The Causal DAG (Graph Construction)
-The engine does not pass raw, flat text logs to the LLM. Instead, it constructs a **Directed Acyclic Graph (DAG)** (`kpi_engine/graph/dag_model.py`). It maps rigorous causal edges from the A* node out to Tier 1, Tier 2, and Tier 3 dependencies. The AI is forced to reason exclusively along these verified edges.
-
-### 3. Dynamic Pruning ("The Cage" & "The Brakes")
-The engine ruthlessly cuts out hallucinated "reasons" or irrelevant states dynamically:
-*   **The Cage (Temporal & Dimensional Pruning):** The graph builder strictly deletes any candidate log that falls outside a tight `[-48h, +12h]` window. It also prunes states dynamically if dimensional tags (e.g., `region="West"`) do not mathematically intersect with the Anchor.
-*   **The Brakes (Weight Pruning):** The configuration enforces an `edge_prune_weight_threshold` (default: `0.65`). If the composite causal weight of an edge drops below this value, that reason is dynamically severed and discarded as "Noise." Traversal depth is also hard-capped (`max_traversal_hops = 2`) to stop infinite logical leaps.
-
-### 4. k-Nearest Neighbors (FAISS Vector RAG)
-Instead of relying on the LLM's raw pre-trained memory, the engine uses **FAISS** to calculate precise **k-Nearest Neighbors (k-NN)** in high-dimensional embedding spaces (`kpi_engine/memory/vector_store.py`). It **only pulls the $k$ nearest historical precedents** and uses their geometric distance to calculate the exact `Contextual Relevance (CR)` score for the DAG.
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                 OMNISION PIPELINE FLOW                                 │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+                                           │
+  ┌────────────────────────────────────────┴────────────────────────────────────────┐
+  │ Stage 0 & 1: Data Telemetry, Z-Score & EWMA Anomaly Detection                   │
+  └────────────────────────────────────────┬────────────────────────────────────────┘
+                                           │
+  ┌────────────────────────────────────────┴────────────────────────────────────────┐
+  │ Stage 2: Scoping Router & Hybrid Security Matrix (Tier 1 Pruning / Tier 2 Mask) │
+  └────────────────────────────────────────┬────────────────────────────────────────┘
+                                           │
+  ┌────────────────────────────────────────┴────────────────────────────────────────┐
+  │ Stage 3: Bounded Graph Builder ("The Cage" & "The Brakes" Traversal Depth = 2)  │
+  └────────────────────────────────────────┬────────────────────────────────────────┘
+                                           │
+  ┌────────────────────────────────────────┴────────────────────────────────────────┐
+  │ Stage 4: Composite Causal Scoring (W = CR * CI) & XGBoost + SHAP Attribution    │
+  └────────────────────────────────────────┬────────────────────────────────────────┘
+                                           │
+  ┌────────────────────────────────────────┴────────────────────────────────────────┐
+  │ Stage 5: Dual-Channel Suggester (Grounded SOPs vs Challenger Blue-Sky)          │
+  └────────────────────────────────────────┬────────────────────────────────────────┘
+                                           │
+  ┌────────────────────────────────────────┴────────────────────────────────────────┐
+  │ Stage 6: Multi-Agent Swarm, Liveness Pings & Deterministic Supervisor           │
+  └────────────────────────────────────────┬────────────────────────────────────────┘
+                                           │
+  ┌────────────────────────────────────────┴────────────────────────────────────────┐
+  │ Stage 7: Closed-Loop Continuous Learning, RCA Recalibration & Playbook Append   │
+  └─────────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## ðŸš€ Quickstart & Installation
+## 🛠️ Core Technology Stack
+
+- **Dashboard & User Interface:** Streamlit (v1.30+), Plotly (v5.0+), HTML5/CSS3 custom components.
+- **Machine Learning & Attribution Engine:** XGBoost (`XGBRegressor`), Scikit-Learn (`GradientBoostingRegressor`), SHAP TreeExplainer, NumPy, Pandas.
+- **Graph & Mathematical Models:** NetworkX, Pure-Python Exact Shapley Cooperative Game Theory.
+- **Multi-Agent Orchestration & Swarm:** LangGraph, LangChain, Hybrid Supervisor Framework.
+- **LLM & NLP Integrations:** Google Gemini REST API (`gemini-2.5-flash`), OpenAI GPT-4o (`ChatOpenAI`), Anthropic Claude 3.5 Sonnet (`ChatAnthropic`), Ollama (`llama3`), HuggingFace FinBERT.
+- **Memory & Vector Search:** LocalVectorStore (TF-IDF + Cosine Similarity), FAISS Vector Store, SentenceTransformers (`all-MiniLM-L6-v2`).
+- **Concurrency & Local Acceleration:** ThreadSafeModelLoader (`threading.Lock()` mutexes), LRU query caching (`@lru_cache`), `LLMResponseCache`.
+- **Validation & API Standards:** Pydantic v2 schemas, FastAPI backend hooks, Python `pytest`.
+
+---
+
+## ⚙️ Working Mechanics & Pipeline Architecture (8 Stages)
+
+### Stage 0 & 1: Data Telemetry & Anomaly Detection
+- **Z-Score Detection:** Monitors mature telemetry series ($30+$ days). Alert tripwire at $Z \ge 3.0$; severe shock tripwire at $Z \ge 5.0$.
+- **Cold-Start Handover:** For metrics with $< 30$ samples, switches automatically to Exponentially Weighted Moving Average (EWMA, $\alpha = 0.3$) and static tripwires ($5\%$ variance).
+
+### Stage 2: Directional Scoping & Security Matrix
+- **Directional Router:** Filters candidate log events matching the anomaly's directional vector (e.g., negative revenue drop vs positive latency spike).
+- **Hybrid Security Matrix:**
+  - **Tier 1 Strategic Domain Pruning:** Completely redacts strategic executive logs (M&A, HR terminations) from non-VP clearance.
+  - **Tier 2 Token Masking:** Obfuscates PII/credentials while preserving statistical graph properties.
+
+### Stage 3: Bounded Graph Construction ("The Cage" & "The Brakes")
+- **The Cage (Temporal & Dimensional Bounds):** Restricts causal candidate nodes to a temporal window of `[-48h, +12h]` around the anomaly timestamp.
+- **The Brakes (Traversal Depth & Weight Attenuation):** Hard-caps causal traversal hops to `max_traversal_hops = 2` and prunes edges below composite weight threshold (`0.50`).
+
+### Stage 4: Composite Causal Scoring ($W = CR \times CI$)
+Computes the master multiplicative score $W(A^*, n_i) = CR \times CI$:
+1. **Contextual Relevance ($CR$):** Evaluated by $CR = \alpha W_t + \beta W_e + \gamma W_s$ (Temporal Proximity $W_t$, Entity Overlap $W_e$, Semantic Similarity $W_s$).
+2. **Causal Impact ($CI$):** Blends Signal-to-Noise Ratio ($W_{snr}$) with Counterfactual Impact ($W_{cf}$).
+3. **XGBoost & SHAP Attribution:** Evaluates ambient candidate variables (competitor price changes, weather) using exact Shapley attributions.
+
+### Stage 5: Dual-Channel Solution Suggestion Network
+- **Channel A (Grounded Path):** Queries Layer 1 internal playbooks, Layer 2 market precedents, and Layer 3 operational levers.
+- **Channel B (Challenger Path):** Dispatches creative, unconstrained ideation for shadow evaluation.
+
+### Stage 6: Multi-Agent Swarm Governance & Liveness Validation
+- **Deterministic Validator:** Enforces JSON schema validity, security forbidden command lists (`drop table`, `rm -rf`), budget cost ceilings ($100k VP limit), and live network ping checks.
+- **Local Semantic Supervisor:** Evaluates logical alignment between proposed actions and primary root causes using semantic matching.
+
+### Stage 7: Closed-Loop Continuous Learning
+- **Human RCA Overrides:** Analyst demotions/promotions adjust the engine's semantic threshold ($\eta = 0.05$).
+- **Model Trust Tuning:** Human ACCEPT/REJECT signals boost or decay agent confidence weights ($W_m^{(t+1)} = W_m^{(t)} \times (1 - \eta)$).
+- **Dynamic Playbook Appending:** Approved operational modifications are automatically saved to Layer 1 runbooks.
+
+---
+
+## ⚡ Performance Optimization & Local ML Acceleration
+
+Omnision includes a built-in local performance engine to eliminate API credit exhaustion and ensure sub-second response times:
+
+```
+                  ┌──────────────────────────────────────────────┐
+                  │           PERFORMANCE ENGINE LAYER           │
+                  └──────────────────────┬───────────────────────┘
+                                         │
+       ┌─────────────────────────────────┼─────────────────────────────────┐
+       ▼                                 ▼                                 ▼
+┌───────────────┐              ┌───────────────────┐             ┌──────────────────┐
+│ MUTEX LOCKING │              │ ZERO-CREDIT CACHE │             │   LOCAL ML & VR  │
+├───────────────┤              ├───────────────────┤             ├──────────────────┤
+│ Thread-Safe   │              │ LLMResponseCache  │             │ XGBoost Model    │
+│ Model Loader  │              │ FinBERT LRU Cache │             │ LocalVectorStore │
+└───────────────┘              └───────────────────┘             └──────────────────┘
+```
+
+1. **Thread-Safe Lazy Loading (`kpi_engine/ml/local_ml_engine.py`)**:
+   Uses `ThreadSafeModelLoader` with `threading.Lock()` to load heavy NLP and ML models into memory only when needed, avoiding startup delays and duplicate memory allocations.
+2. **XGBoost Disk Persistence (`kpi_engine/ml/global_model.py`)**:
+   Saves trained model weights to `saved_global_model.pkl`. On subsequent app launches, it loads directly from disk in **< 5ms**.
+3. **Zero-Credit Vector Search (`kpi_engine/memory/vector_store.py`)**:
+   Features a pure Python + NumPy TF-IDF cosine similarity store (`LocalVectorStore`), preventing compulsory cloud embedding API calls.
+4. **Swarm & Query Caching (`kpi_engine/governor/external_tools.py`)**:
+   Applies `@lru_cache` to FinBERT sentiment analysis and market data requests.
+
+---
+
+## 🔬 In-Depth Scenario Walkthroughs (Operational Executions)
+
+### Walkthrough 1: Scenario 1 — Payment Gateway Latency Outage
+
+#### 1. Anomaly Ground Zero ($A^*$)
+- **Metric:** `West Region Checkout Conversion Rate` (`KPI_WEST_CHECKOUT_CONV`)
+- **Current Value:** `2.80%` (Baseline: `3.20%`, Variance: `-12.50%`)
+- **Z-Score:** $Z = 5.19$ (**Severe Shock**)
+
+#### 2. Graph Construction & Causal Scoring
+The engine builds the DAG from $A^*$ and scores incoming candidate logs:
+- `NODE-SYS-101` (System Log): `"Payment Gateway API Timeout (Stripe v4.1), 8000ms latency on POST /v1/charges"`
+  - **Contextual Relevance ($CR$):** $0.92$ (High temporal proximity and entity match `region="West"`, `domain="downstream"`).
+  - **Counterfactual Weight ($W_{cf}$):** $0.95$ (Tier 1 Direct Engineering Cause).
+  - **Composite Weight ($W$):** $0.8740$ (Ranks as **Primary Root Cause**).
+
+#### 3. Swarm Proposal Synthesis
+The Prescriptive Swarm matches Layer 1 Playbook `ACT-PM-2291`:
+- **Action:** `"Roll back Stripe v4.1 gateway integration to v4.0 and re-route 15% traffic to Adyen backup"`
+- **Estimated Cost:** `$4,200.00`
+- **RACI Owner:** `Platform Engineering`
+- **Execution Command:** `helm rollback stripe-gateway 4.0 && traffic-router set --split stripe:85,adyen:15`
+
+#### 4. Supervisor Verdict & Payloads
+- **Deterministic Check:** Passed (Cost $< \$10,000$ auto-approved ceiling; liveness ping active).
+- **Semantic Supervisor:** Verified alignment between 8000ms API timeout and gateway rollback action.
+- **Executive Output:** Financial Exposure `$42,000.00`, Business Risk **HIGH**.
+
+---
+
+### Walkthrough 2: Scenario 2 — Multivariate Price & Volume (SHAP Analysis)
+
+#### 1. Anomaly Ground Zero ($A^*$)
+- **Metric:** `Electronics Division Sales Volume` (`KPI_ELEC_SALES_VOL`)
+- **Variance:** `-18.20%` ($Z = 4.85$)
+
+#### 2. XGBoost & SHAP Attribution Execution
+The engine encounters ambient market variables and triggers the SHAP explainer:
+- Features evaluated: `competitor_price`, `weather_severity`, `server_latency`, `marketing_spend`.
+- **SHAP Results:**
+  - `competitor_price`: **$64.20\%$ variance explained** (Competitor RivalRetail launched a $20\%$ flash sale).
+  - `weather_severity`: **$12.10\%$ variance explained**.
+  - `marketing_spend`: **$8.30\%$ variance explained**.
+
+#### 3. Prescriptive Solution
+- **Primary Cause:** Extracted via SHAP attribution as `Competitor RivalRetail 20% flash promotion`.
+- **Recommended Action:** `"Deploy dynamic price-matching promotion on top 5 electronics SKUs"`
+- **Cost:** `$6,800.00` | **Status:** `AUTO_APPROVED`
+
+---
+
+### Walkthrough 3: Scenario 3 — Cold-Start Metric & Noise Profile Filtering
+
+#### 1. Anomaly Ground Zero ($A^*$)
+- **Metric:** `Drone Delivery Volume` (`KPI_DRONE_DELIV`)
+- **History:** $14$ days ($< 30$ sample threshold $\rightarrow$ **Cold Start Phase**).
+
+#### 2. Phased Handover & Vector Store Lookup
+- Uses static tripwire ($5\%$ flat deviation) and EWMA ($\alpha = 0.3$).
+- `PlaybookVectorStore` runs $k$-NN search against historical incident signatures.
+- **Match Found:** Document `NOISE-001`: `"False Alarm: Ad Clicks dropped 20% on a weekend due to natural stochastic variance."`
+- **Counterfactual Score:** Assigned $W_{cf} = 1.00$ for explicit noise visibility.
+
+#### 3. Execution Verdict
+- **Supervisor Status:** Discarded as false alarm noise signature. No engineering escalation required.
+
+---
+
+### Walkthrough 4: Scenario 4 — Hybrid Security Matrix & Strategic Abstention
+
+#### 1. Strategic Anomaly Ground Zero ($A^*$)
+- **Metric:** `Corporate Net Operating Margin` (`KPI_CORP_MARGIN`)
+- **Variance:** `-14.10%`
+
+#### 2. Security Clearance Scoping
+- Primary Cause: `NODE-SEC-401` (`"Confidential acquisition of FastPay checkout gateway: $850,000 advisor fee"`) classified under **Tier 1 Strategic Domain Pruning**.
+
+#### 3. Role-Based Execution Results
+- **User: `EXECUTIVE_VP` (Full Access):**
+  - Clears Tier 1 pruning. Primary driver displayed: `"Confidential acquisition of FastPay gateway"`.
+  - Action: `"Approve scheduled non-recurring M&A charge against corporate reserve"`
+- **User: `SENIOR_ENGINEER` or `JUNIOR_ANALYST` (Restricted Access):**
+  - Tier 1 Pruning strips the driver to protect M&A confidentiality.
+  - **Graceful Abstention:** The engine returns `STATUS: ABSTAINED` with a cryptographic audit receipt instead of presenting incomplete or hallucinated data.
+
+---
+
+## 🔒 Security & Role-Based Access Control (RBAC)
+
+Omnision enforces strict frontend and backend RBAC to prevent unauthorized data exposure:
+
+| Role Clearance | Executive View | Engineer Logs | Public LLMs (OpenAI/Gemini/Anthropic) | Private LLMs (Ollama/Mock) | Tier 1 M&A Logs |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **`EXECUTIVE_VP`** | ✅ Full | ✅ Full | ✅ Allowed | ✅ Allowed | ✅ Unlocked |
+| **`SENIOR_ENGINEER`** | ✅ Full | ✅ Full | ❌ Blocked | ✅ Allowed | 🔒 Abstained |
+| **`JUNIOR_ANALYST`** | ⚠️ Redacted | ⚠️ Masked | ❌ Blocked | ✅ Allowed | 🔒 Abstained |
+
+---
+
+## 🛠️ Environment Configuration & API Setup
+
+Omnision dynamically parses `.env` files on startup.
+
+### 1. Create your `.env` file
+Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
+```
+
+### 2. `.env` File Structure
+```ini
+# Performance & Local Optimization Settings
+PREFER_LOCAL_TOOLS=True
+ENABLE_LLM_CACHE=True
+ENABLE_LOCAL_ML_MODELS=True
+
+# Default LLM Provider ('mock', 'local', 'openai', 'anthropic', 'gemini', 'ollama')
+LLM_PROVIDER=mock
+
+# Cloud Provider API Keys (Used when configured by EXECUTIVE_VP)
+OPENAI_API_KEY=your_openai_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+GOOGLE_API_KEY=your_google_api_key_here
+HF_TOKEN=your_huggingface_token_here
+
+# Ollama Local Settings
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3
+```
+
+---
+
+## 🚀 Installation & Quickstart Guide
 
 ### Prerequisites
-* Python 3.9+
-* Windows / Linux / macOS compatible.
-* No heavy C-compiled dependencies.
+- Python 3.9+ (Python 3.11/3.12/3.13 supported)
+- Git
 
-### Installation
+### 1. Installation
 ```bash
 git clone https://github.com/your-org/omnision.git
 cd omnision
 pip install -r requirements.txt
-pip install langchain-ollama # Required for local, zero-leak privacy mode
 ```
 
-### 1. Launch Interactive Web Dashboard (Streamlit)
+### 2. Launch Interactive Web Dashboard
 ```bash
 streamlit run app.py
 ```
 > Opens in your browser at `http://localhost:8501`.
-> 
-> ðŸ”’ **Default Login Credentials:**
-> * Username: `admin` | Password: `adminpassword` (EXECUTIVE_VP) - *Can use all LLMs*
-> * Username: `engineer` | Password: `engineerpassword` (SENIOR_ENGINEER) - *Restricted to Ollama*
-> * Username: `analyst` | Password: `analystpassword` (JUNIOR_ANALYST) - *Restricted to Ollama*
-> 
-> *To change these passwords or add new users, simply edit the `kpi_engine/users.json` file in your repository!*
+
+#### Default Credentials (`kpi_engine/users.json`):
+- **Username:** `admin` | **Password:** `adminpassword` (`EXECUTIVE_VP`)
+- **Username:** `engineer` | **Password:** `engineerpassword` (`SENIOR_ENGINEER`)
+- **Username:** `analyst` | **Password:** `analystpassword` (`JUNIOR_ANALYST`)
 
 ---
 
-## ðŸ› ï¸ Configuring API Keys
+## 🧪 Automated Test Suite & Verification Matrix
 
-Omnision supports OpenAI, Anthropic, Gemini, and local Ollama models. 
-You must configure your API keys in **`kpi_engine/config.py`**. 
+Run full unit and integration tests using `pytest`:
 
-1. Open `kpi_engine/config.py` in your code editor.
-2. Locate the `SystemConfig` class at the bottom of the file.
-3. Paste your specific keys exactly between the quotation marks.
-
-```python
-class SystemConfig(BaseModel):
-    # ðŸ”‘ PASTE YOUR API KEYS HERE:
-    openai_api_key: str = "sk-..." 
-    anthropic_api_key: str = "sk-ant-..."
-    google_api_key: str = "..."
-    huggingface_api_key: str = "..."  # Required ONLY if using FinBERT Web Agent
-    
-    # ðŸ¦™ OLLAMA SETTINGS (For 100% Private Data)
-    ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3"
+```bash
+python -m pytest tests/
 ```
-*(Note: If you already have these set as system Environment Variables (e.g., `OPENAI_API_KEY`), Omnision will automatically detect and use them!)*
+
+### Test Suite Summary (12 Test Cases):
+- `tests/test_causal_math_shap.py`: Verifies SHAP TreeExplainer attributions and exact Shapley game theory.
+- `tests/test_closed_loop.py`: Verifies end-to-end pipeline execution, human RCA override cascade, model trust decay, and dynamic playbook appending.
+- `tests/test_cold_start.py`: Verifies EWMA calculations and phased handover triggers.
+- `tests/test_multi_agent_critic.py`: Verifies solution candidate scoring and supervisor feedback loops.
+- `tests/test_security_matrix.py`: Verifies Tier 1 pruning, Tier 2 masking, and graceful abstention.
+
+### Run Verification Matrix Script
+```bash
+python scratch_verify.py
+```
 
 ---
 
-## ðŸ¢ Business Setup Guide: Deploying to Your Organization
+## 📂 Repository Directory Sitemap
 
-Omnision is built to be domain-agnostic. Whether you are running a Fintech app, an E-Commerce store, or a Supply Chain logistics network, you can adapt Omnision to automatically manage your business incidents by following these 5 steps:
-
-### Step 1: Hook Up Your Real Data Warehouse (ETL)
-By default, the engine uses the `KartMitraDataGenerator` to synthesize fake telemetry for the demo. To use real data:
-1. Review the `TelemetryPoint` and `CandidateNode` schemas inside `kpi_engine/data/models.py`.
-2. Write a daily cron job, Airflow DAG, or dbt model that queries your internal databases (BigQuery, Snowflake, Datadog) and exports your logs, marketing events, and sales metrics into these exact Pydantic JSON formats.
-3. Replace the mock generator call in `kpi_engine/pipeline.py` with a function that loads your live JSON payload.
-
-### Step 2: Define Your Custom KPIs (Semantic Contracts)
-The engine needs to know the rules for your specific business metrics.
-1. Open `kpi_engine/data/models.py`.
-2. Instantiate `KPISemanticContract` objects for your real metrics (e.g., `Cart_Abandonment_Rate`, `API_Latency_P99`).
-3. Define the crucial boundaries for each metric: 
-   * Set `target_value` (what the metric *should* be).
-   * Set `static_tripwire` (e.g., `0.05` means a 5% drop triggers an emergency).
-   * Set `graduation_threshold` (how many days of data are needed before it switches from cold-start to Z-score math).
-
-### Step 3: Seed Your Institutional Memory (FAISS Graph-RAG)
-To prevent the AI from giving generic advice, you must teach it your company's standard operating procedures (SOPs).
-1. Export your past incident post-mortems from Confluence, Jira, or Zendesk.
-2. Format them into text documents and pass them into the `PlaybookVectorStore` in `kpi_engine/memory/vector_store.py`.
-3. **The Result:** The next time a server crashes or sales dip, Omnision will automatically perform a k-Nearest Neighbor search, retrieve your company's exact past solution, and inject it into the AI prompt as a "Tier 0 Historical Precedent."
-
-### Step 4: Configure Enterprise Security Clearances
-1. Open `kpi_engine/scoper/security_matrix.py`.
-2. Define what specific logs correspond to different `SecurityTier` classifications (e.g., flag all legal/HR logs as `TIER_1_DOMAIN_PRUNING`).
-3. Set your organization's financial limits in `kpi_engine/config.py` (e.g., `vp_approval_required_cost_usd = 100000.0`). The AI will automatically route any proposed fix that costs more than $100k to a VP for manual approval.
-
-### Step 5: Start the LangGraph Orchestrator
-Once your keys and KPIs are wired up, you can start the dashboard using `streamlit run app.py` and manage your operations entirely autonomously.
-
-
-## 📂 System Architecture & Directory Structure
-
-Omnision's modular codebase is organized within the `kpi_engine/` directory to separate concerns across detection, orchestration, governance, and user interface:
-
-*   **`pipeline.py` & `config.py`:** The central nervous system. `pipeline.py` orchestrates the flow from anomaly detection to graph construction, while `config.py` manages LLM economics, thresholds, and provider keys.
-*   **`ui/` (Streamlit Frontend):** Contains the highly-interactive two-column dashboard (`streamlit_app.py`). Features full RBAC support, dynamic human-in-the-loop manual RCA/Fix overrides, and clear cost/impact metadata parsing.
-*   **`suggester/` (LLM Swarm):** Houses the multi-agent `llm_swarm.py`. Built with extreme resilience, it features a self-healing 3-attempt auto-retry loop that automatically catches and corrects LLM JSON hallucination errors.
-*   **`graph/` & `causal/`:** Constructs the Directed Acyclic Graphs (DAGs) and executes mathematical pruning to enforce the "Cage".
-*   **`ml/` (Machine Learning):** Contains the underlying predictive models (`global_model.py`) and explainability layers (`shap_explainer.py`) that ground the LLM in statistical reality.
-*   **`data/` & `memory/`:** Manages standard logging schemas, mock data generation, and the FAISS Vector RAG `PlaybookVectorStore` for institutional memory.
-*   **`governor/` & `scoper/`:** Enforces enterprise rules, budgetary approvals (VP limits), and zero-leak security pruning (removing PII before LLM ingestion).
-*   **`api/` & `learning/`:** Exposes backend hooks and manages the continuous telemetry loop that ingests real-world execution deltas back into the FAISS memory banks.
+```
+Omnision/
+├── app.py                      # Root entry point for Streamlit web dashboard
+├── .env                        # Environment keys and system settings
+├── .env.example                # Template configuration file
+├── requirements.txt            # Project dependencies
+├── scratch_verify.py           # Verification script for 4 benchmark scenarios
+├── test_run.py                 # E2E test script
+├── tests/                      # Pytest automation suite (12 test suites)
+│   ├── test_causal_math_shap.py
+│   ├── test_closed_loop.py
+│   ├── test_cold_start.py
+│   ├── test_multi_agent_critic.py
+│   └── test_security_matrix.py
+└── kpi_engine/                 # Master System Package
+    ├── config.py               # Dynamic SystemConfig and .env loader
+    ├── pipeline.py             # Orchestrator for 8-stage Neuro-Symbolic pipeline
+    ├── users.json              # RBAC user credentials database
+    ├── ml/                     # Machine Learning & Local Performance Engine
+    │   ├── global_model.py     # XGBoost regressor with disk model persistence
+    │   ├── shap_explainer.py   # Exact Shapley additive feature explainer
+    │   └── local_ml_engine.py  # ThreadSafeModelLoader, LRU cache & LocalVectorStore
+    ├── memory/                 # Institutional Memory & Graph-RAG Vector Store
+    │   └── vector_store.py     # PlaybookVectorStore with LocalVectorStore fallback
+    ├── governor/               # Multi-Agent Governance & Security
+    │   ├── hybrid_supervisor.py# Neuro-Symbolic & Local Semantic Supervisor
+    │   ├── langgraph_orchestrator.py # Swarm workflow with local fallback
+    │   ├── llm_factory.py      # LLM provider factory & Gemini direct REST caller
+    │   ├── llm_state.py        # AgentState definition for LangGraph
+    │   ├── schemas.py          # Unified Master Payload schemas
+    │   └── external_tools.py   # FinBERT web intelligence with LRU query caching
+    ├── suggester/              # Multi-Agent Generator & Dual-Channel Network
+    │   ├── llm_swarm.py        # RCA and Blue-Sky swarm nodes with LRU caching
+    │   ├── dual_channel.py     # Grounded vs Challenger solution networks
+    │   └── layers_data.py      # Layer 1 internal playbooks & operational levers
+    ├── causal/                 # Causal Inference & Graph Mathematics
+    │   ├── composite_scorer.py # Multiplicative composite causal weights (W = CR * CI)
+    │   ├── contextual_relevance.py # Temporal, Entity, and Semantic similarity gatekeeper
+    │   ├── counterfactual_tiers.py # Counterfactual hypothesis hierarchy
+    │   └── shapley_engine.py   # Cooperative game theory engine
+    ├── graph/                  # Directed Acyclic Graph (DAG) Construction
+    │   ├── bounded_builder.py  # Bounded Graph Pre-Pruner ("The Cage" & "The Brakes")
+    │   └── dag_model.py        # Graph schema definitions
+    ├── detector/               # Anomaly Detection & Cold-Start Handover
+    │   ├── anomaly_pipeline.py # Z-score and EWMA anomaly detector
+    │   └── cold_start.py       # Phased handover manager
+    ├── scoper/                 # Security Scoping & Blast Radius Matrix
+    │   ├── directional_router.py # Directional Scoper
+    │   └── security_matrix.py  # Hybrid Security Matrix (Tier 1 & Tier 2)
+    ├── learning/               # Closed-Loop Continuous Learning
+    │   ├── dynamic_playbook.py # Dynamic Playbook appender
+    │   ├── rca_corrections.py  # Human RCA override & recalibration manager
+    │   └── trust_tuning.py     # Model trust decay & boost tuner
+    ├── data/                   # Data Models & Seed Scenarios
+    │   ├── models.py           # Core Pydantic data schemas
+    │   ├── generator.py        # Telemetry data generator
+    │   └── seed_scenarios.py   # 4 enterprise benchmark scenarios
+    └── ui/                     # Interactive Streamlit Frontend
+        └── streamlit_app.py    # Executive Two-Column Dashboard with RBAC
+```
 
 ---
 
-> **Note:** The major architectural updates (Two-Column Interactive UI, Swarm Auto-Healing Retries, and the elimination of the old DevOps debug tab) have been successfully deployed in v3.0!
+## 📜 License & Enterprise Compliance
+
+Omnision is built for enterprise data privacy. By combining deterministic neuro-symbolic graph bounding, local vector stores, thread-safe model caching, and strict RBAC data masking, it ensures complete mathematical reliability without compromising sensitive company data.
