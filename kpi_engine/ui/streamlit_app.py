@@ -1,4 +1,4 @@
-﻿"""
+"""
 Omnision: Autonomous KPI Storytelling & Causal Governance Engine (v3.0)
 Interactive Executive Dashboard
 """
@@ -45,6 +45,8 @@ st.sidebar.markdown("**Unified Architecture Compendium v3.0**")
 
 scenario_options = {
     "SCENARIO_1_STRIPE_GATEWAY_OUTAGE": "1. Stripe v4.1 Gateway Latency Outage (-12.4%)",
+    "SCENARIO_2_MULTIVARIATE_DAG_SHAP": "2. Interacting Price & Volume Drivers (DAG + SHAP)",
+    "SCENARIO_3_COLD_START_PHASED_HANDOVER": "3. Cold-Start 1-Click Mobile Checkout (<30d)",
     "SCENARIO_4_SECURITY_CLEARANCE_MATRIX": "4. Hybrid Security Matrix (Tier 1 & Tier 2)",
 }
 
