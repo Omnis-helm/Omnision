@@ -281,7 +281,7 @@ class KPIStorytellingEngine:
 
         # Make Engineer and Ops Views dynamic based on the actual driver and context
         raw_cause = primary_driver.content if not primary_driver.is_masked else primary_driver.title
-        tech_root_cause = f"AI identified {raw_cause} via Swarm"
+        tech_root_cause = f"AI identified {raw_cause} via Swarm" 
         
         target_env = context.get("target_environment", "production-cluster")
         playbook_cmd = f"helm rollback {anchor.dimensions.get('domain', 'service')} --force" if "Stripe" in raw_cause else f"kubectl scale --replicas=5 deployment/{anchor.dimensions.get('category', 'app')}"
@@ -337,6 +337,7 @@ class KPIStorytellingEngine:
             "discarded_noise": discarded_noise,
             "scored_nodes": scored_nodes,
             "master_payload": master_payload,
+            "raw_state": final_state,
             "security_audit": security_audit,
             "context": context,
         }

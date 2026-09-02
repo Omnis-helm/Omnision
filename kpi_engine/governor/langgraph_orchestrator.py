@@ -55,13 +55,12 @@ def execute_langgraph_swarm(
                 if status == "APPROVED" or status == "MAX_ITERATIONS_REACHED":
                     return END
                 else:
-                    return "rca_agent" # Loop back to primary agent for fixes
+                    return "rca_agent"
                     
-            # Edges: rca_agent -> deterministic_validator
-            # rca_agent -> blue_sky_agent -> blue_sky_critic -> END
-            workflow.add_edge("rca_agent", "blue_sky_agent")
             workflow.add_edge("rca_agent", "deterministic_validator")
+            workflow.add_edge("rca_agent", "blue_sky_agent")
             workflow.add_edge("blue_sky_agent", "blue_sky_critic")
+            workflow.add_edge("blue_sky_critic", END)
             workflow.add_edge("deterministic_validator", "llm_supervisor")
             workflow.add_conditional_edges("llm_supervisor", route_supervisor)
             

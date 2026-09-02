@@ -1,4 +1,4 @@
-﻿"""
+"""
 Hybrid Neuro-Symbolic Supervisor
 """
 import os
@@ -128,6 +128,7 @@ def llm_supervisor_node(state: AgentState) -> Dict[str, Any]:
 
 
 
+
 def blue_sky_critic_node(state: AgentState) -> Dict[str, Any]:
     """Layer 2.5: Unconstrained Critic specifically for Blue-Sky ideas. Does NOT reject or loop."""
     blue_sky_proposals = state.get("blue_sky_proposals", [])
@@ -141,6 +142,7 @@ def blue_sky_critic_node(state: AgentState) -> Dict[str, Any]:
         decision = "EVALUATED"
         reason = "Sandbox Evaluation: Idea is creatively unrestricted but poses high operational risk."
     else:
+        from kpi_engine.governor.llm_factory import get_llm
         llm = get_llm(provider=provider, temperature=0.2)
         prompt = (
             f"You are the Omnision Reality Checker.\n"

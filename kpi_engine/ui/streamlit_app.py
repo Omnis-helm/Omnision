@@ -1,4 +1,4 @@
-"""
+﻿"""
 Omnision: Autonomous KPI Storytelling & Causal Governance Engine (v3.0)
 Interactive Executive Dashboard
 """
@@ -492,7 +492,7 @@ else:
             grounded_actions = [a for a in master.executive_view.recommended_actions if "Challenger" not in a.source_layer]
             if grounded_actions:
                 for a in grounded_actions:
-                    st.success(f"**{a.action}**\n\n• Source: {a.source_layer}\n\n• Cost: `${a.estimated_cost_usd:,.2f}` | Time: `{a.time_to_impact_minutes}m`\n\n• Critic: `{a.critic_verdict}`")
+                    st.success(f"**{a.action}**\n\nÃ¢â‚¬Â¢ Source: {a.source_layer}\n\nÃ¢â‚¬Â¢ Cost: `${a.estimated_cost_usd:,.2f}` | Time: `{a.time_to_impact_minutes}m`\n\nÃ¢â‚¬Â¢ Critic: `{a.critic_verdict}`")
             else:
                 st.info("No grounded actions generated.")
 
@@ -504,13 +504,16 @@ else:
             
             if blue_sky_proposals:
                 for idx, a in enumerate(blue_sky_proposals):
-                    st.warning(f"**{a.get('action')}**\n\n〰️ Cost: `${float(a.get('estimated_cost_usd', 0)):,.2f}`\n\n〰️ Approval: `{a.get('approval_status')}`")
+                    st.warning(f"**{a.get('action')}**
+
+〰️ Cost: `${float(a.get('estimated_cost_usd', 0)):,.2f}`
+
+〰️ Approval: `{a.get('approval_status')}`")
                     st.info(f"**The Reality Checker (Critic):** {blue_sky_critique}")
                     
                     b1, b2 = st.columns(2)
                     with b1:
                         if st.button(":material/refresh: Rerun Blue-Sky", key=f"rerun_bs_{idx}"):
-                            # In a full implementation this would directly invoke blue_sky_node and blue_sky_critic
                             st.success("Blue-Sky rerolled! (Simulated)")
                     with b2:
                         if st.button(":material/upgrade: Promote to Main", key=f"promote_bs_{idx}"):
@@ -618,7 +621,6 @@ else:
                 )
                 st.success(f"New Playbook [{entry['id']}] ingested into Layer 1 Prescriptive Store!")
                 st.json(entry)
-
 
 
 

@@ -31,7 +31,7 @@ class MockLLM:
 
 class GeminiDirectLLM:
     """Direct REST caller for Google Gemini API without requiring langchain-google-genai."""
-    def __init__(self, api_key: str, model: str = "gemini-2.5-flash", temperature: float = 0.0):
+    def __init__(self, api_key: str, model: str = "gemini-3.6-flash", temperature: float = 0.0):
         self.api_key = api_key
         self.model = model
         self.temperature = temperature
@@ -40,7 +40,7 @@ class GeminiDirectLLM:
         import urllib.request
         import json
 
-        models_to_try = [self.model, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+        models_to_try = [self.model, "gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
         last_error = None
 
         for m in models_to_try:
@@ -101,7 +101,7 @@ def get_llm(provider: str = None, temperature=0.0):
             raise MissingAPIKeyError("Google API Key not found. Please add it to config.py, .env, or set GOOGLE_API_KEY.")
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI
-            return ChatGoogleGenerativeAI(google_api_key=api_key, model="gemini-2.5-flash", temperature=temperature)
+            return ChatGoogleGenerativeAI(google_api_key=api_key, model="gemini-3.6-flash", temperature=temperature)
         except ImportError:
             return GeminiDirectLLM(api_key=api_key, temperature=temperature)
             
