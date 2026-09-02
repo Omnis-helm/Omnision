@@ -108,12 +108,12 @@ Computes the master multiplicative score $W(A^*, n_i) = CR \times CI$:
 3. **XGBoost & SHAP Attribution:** Evaluates ambient candidate variables (competitor price changes, weather) using exact Shapley attributions.
 
 ### Stage 5: Dual-Channel Solution Suggestion Network
-- **Channel A (Grounded Path):** Queries Layer 1 internal playbooks, Layer 2 market precedents, and Layer 3 operational levers.
-- **Channel B (Challenger Path):** Dispatches creative, unconstrained ideation for shadow evaluation.
+- **Channel A (Grounded Path):** Queries Layer 1 internal playbooks, Layer 2 market precedents, and Layer 3 operational levers. The pipeline dynamically extracts **multiple operational fixes** simultaneously, provided they pass strict business thresholds (e.g., Executive cost limits and execution timeframes).
+- **Channel B (Challenger Path):** Dispatches creative, unconstrained ideation for lateral problem solving. These "Blue-Sky" ideas are sent to the **Reality Checker Critic**, an independent agent that provides non-punishing feasibility critiques without rejecting the idea or looping the graph. This allows operators to sandbox, reroll, or promote wild ideas to the main production pipeline at will.
 
 ### Stage 6: Multi-Agent Swarm Governance & Liveness Validation
 - **Deterministic Validator:** Enforces JSON schema validity, security forbidden command lists (`drop table`, `rm -rf`), budget cost ceilings ($100k VP limit), and live network ping checks.
-- **Local Semantic Supervisor:** Evaluates logical alignment between proposed actions and primary root causes using semantic matching.
+- **LLM Supervisor (The Critic):** Evaluates logical alignment between proposed actions and primary root causes. If an operational fix violates logic, the Critic **rejects and loops** the LangGraph swarm back to the suggester agents until a verified fix is produced.
 
 ### Stage 7: Closed-Loop Continuous Learning
 - **Human RCA Overrides:** Analyst demotions/promotions adjust the engine's semantic threshold ($\eta = 0.05$).
