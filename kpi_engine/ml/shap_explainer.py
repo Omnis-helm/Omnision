@@ -23,6 +23,29 @@ class LocalShapExplainer:
         features = list(self.X_background.columns)
         n = len(features)
         
+        # High-scalability fallback for >10 features
+        if n > 10:
+            import shap
+            import logging
+            logging.info(f"Feature count {n} > 10. Falling back to shap.TreeExplainer for scalability.")
+            explainer = shap.TreeExplainer(self.model)
+            # shap_values returns a matrix (num_samples, num_features)
+            # anomaly_row is a single row DataFrame
+            shap_vals = explainer.shap_values(anomaly_row)
+            
+            # Extract the first row of shap values
+            if isinstance(shap_vals, list):
+                # For some models, shap_values is a list for each class. We assume regression.
+                vals = shap_vals[0][0]
+            elif len(shap_vals.shape) == 2:
+                vals = shap_vals[0]
+            elif len(shap_vals.shape) == 3:
+                vals = shap_vals[0, :, 0]
+            else:
+                vals = shap_vals[0]
+                
+            return {feat: float(val) for feat, val in zip(features, vals)}
+        
         # We need a background reference for missing features.
         # We'll use the mean of the background dataset.
         bg_means = self.X_background.mean()

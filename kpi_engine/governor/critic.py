@@ -28,11 +28,8 @@ class TheCritic:
         passed: List[SolutionCandidate] = []
         discarded: List[SolutionCandidate] = []
 
-        valid_action_keywords = [
-            "rollback", "roll back", "shift", "isolate", "price", "hedge",
-            "traffic", "switch", "migrate", "loyalty", "retry", "scale",
-            "circuit breaker", "restart", "flush", "route"
-        ]
+        from kpi_engine.config import VALID_ACTION_KEYWORDS
+        valid_action_keywords = VALID_ACTION_KEYWORDS
 
         for cand in candidates:
             # 1. Correctness Test: Does it neutralize the primary anchor driver?

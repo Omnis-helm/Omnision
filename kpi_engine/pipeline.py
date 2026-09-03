@@ -200,7 +200,7 @@ class KPIStorytellingEngine:
             execution_latency_ms=latency_ms,
             total_tokens_consumed=tokens,
             estimated_cost_usd=cost_usd,
-            model_routed="LangGraph - GPT-4o-Mini",
+            model_routed=f"LangGraph - {primary_llm}",
             cache_hit=False,
             budget_pruning_applied=False,
         )
@@ -229,8 +229,8 @@ class KPIStorytellingEngine:
         # Helper to process a proposal
         def process_proposal(prop, is_blue_sky=False):
             raw_action = prop.get("action", "No action returned")
-            blocked_keywords = ["drop table", "delete from", "rm -rf", "chmod 777", "grant all"]
-            if any(bad_word in raw_action.lower() for bad_word in blocked_keywords):
+            from kpi_engine.config import FORBIDDEN_ACTION_KEYWORDS
+            if any(bad_word in raw_action.lower() for bad_word in FORBIDDEN_ACTION_KEYWORDS):
                 return None
                 
             est_cost = float(prop.get("estimated_cost_usd", 0.0))

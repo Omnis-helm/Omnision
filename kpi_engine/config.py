@@ -86,3 +86,6 @@ CONFIG = SystemConfig()
 
 
 
+
+FORBIDDEN_ACTION_KEYWORDS = ["drop table", "delete from", "rm -rf", "chmod 777", "grant all", "shutdown server", "ssn", "delete database"]
+VALID_ACTION_KEYWORDS = ["rollback", "roll back", "shift", "isolate", "price", "hedge", "traffic", "switch", "migrate", "loyalty", "retry", "scale", "circuit breaker", "restart", "flush", "route"]

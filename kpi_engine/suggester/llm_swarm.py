@@ -97,6 +97,17 @@ def _generate_proposal(state: AgentState, llm_provider: str, persona: str, layer
             
         response = llm.invoke(current_prompt)
         
+        # Extract token usage if available
+        tokens_used = 0
+        if hasattr(response, "response_metadata") and isinstance(response.response_metadata, dict):
+            token_usage = response.response_metadata.get("token_usage", {})
+            if isinstance(token_usage, dict):
+                tokens_used = token_usage.get("total_tokens", 500)
+            else:
+                tokens_used = 500
+        else:
+            tokens_used = 500
+            
         try:
             content = str(response.content).strip()
             
@@ -141,6 +152,7 @@ def _generate_proposal(state: AgentState, llm_provider: str, persona: str, layer
             if not feedback:
                 LLMResponseCache.set(anchor_metric, primary_driver, llm_provider, persona, proposal)
 
+            proposal["_tokens_used"] = tokens_used
             return proposal
             
         except Exception as e:
@@ -164,12 +176,13 @@ def rca_story_node(state: AgentState) -> Dict[str, Any]:
     provider = state.get("primary_llm_provider", "mock")
     proposal = _generate_proposal(state, provider, "Omnision Prescriptive Swarm", "Layer 3 - Prescriptive Swarm", 0.4)
     
+    tokens = proposal.pop("_tokens_used", 500)
     proposals = state.get("proposals", [])
     proposals.append(proposal)
     
     return {
         "proposals": proposals,
-        "tokens_consumed": state.get("tokens_consumed", 0) + 500,
+        "tokens_consumed": state.get("tokens_consumed", 0) + tokens,
         "iteration_count": state.get("iteration_count", 0) + 1
     }
 
@@ -184,12 +197,13 @@ def blue_sky_node(state: AgentState) -> Dict[str, Any]:
     # Flag it for shadow run
     proposal["requires_shadow_run"] = True
     
+    tokens = proposal.pop("_tokens_used", 500)
     blue_sky_proposals = state.get("blue_sky_proposals", [])
     blue_sky_proposals.append(proposal)
     
     return {
         "blue_sky_proposals": blue_sky_proposals,
-        "tokens_consumed": state.get("tokens_consumed", 0) + 500,
+        "tokens_consumed": state.get("tokens_consumed", 0) + tokens,
         "blue_sky_iteration": state.get("blue_sky_iteration", 0) + 1
     }
 

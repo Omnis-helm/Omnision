@@ -42,8 +42,8 @@ def deterministic_validator_node(state: AgentState) -> Dict[str, Any]:
             
     # 3. Security / Forbidden Action Check (Simulated PII/Destructive actions)
     action_str = latest_proposal.get("action", "").lower()
-    forbidden_terms = ["delete database", "drop table", "shutdown server", "ssn"]
-    for term in forbidden_terms:
+    from kpi_engine.config import FORBIDDEN_ACTION_KEYWORDS
+    for term in FORBIDDEN_ACTION_KEYWORDS:
         if term in action_str:
             return {"final_status": "REJECTED", "supervisor_feedback": f"Security Violation: '{term}' is strictly forbidden."}
 
@@ -52,8 +52,8 @@ def deterministic_validator_node(state: AgentState) -> Dict[str, Any]:
         return {"final_status": "REJECTED", "supervisor_feedback": "Technical lever failed liveness ping. The operational endpoint is currently unresponsive."}
         
     # 4. TheCritic Feasibility Checks (Integrated from TheCritic)
-    valid_action_keywords = ["rollback", "roll back", "shift", "isolate", "price", "hedge", "traffic", "switch", "migrate", "loyalty", "retry", "scale", "circuit breaker", "restart", "flush", "route"]
-    if not any(kw in action_str for kw in valid_action_keywords):
+    from kpi_engine.config import VALID_ACTION_KEYWORDS
+    if not any(kw in action_str for kw in VALID_ACTION_KEYWORDS):
         return {"final_status": "REJECTED", "supervisor_feedback": "Critic Verdict: REJECTED: Proposed action does not sufficiently neutralize the identified root cause. Provide an operational lever."}
         
     lever_required = latest_proposal.get("operational_lever_required")
