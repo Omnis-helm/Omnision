@@ -13,6 +13,7 @@ from kpi_engine.data.models import (
     LifecycleStage,
 )
 from kpi_engine.data.generator import KartMitraDataGenerator
+from kpi_engine.data.reconciler import HeterogeneousDataReconciler
 from kpi_engine.data.seed_scenarios import (
     get_scenario_1_stripe_outage,
     get_scenario_2_multivariate_price_volume,
@@ -71,7 +72,9 @@ class KPIStorytellingEngine:
         self.global_model = GlobalKPIModel()
         
         # We simulate the background batch process here
-        df, _ = self.data_generator.generate_multivariate_dataframe(days=35)
+        raw_web, raw_it, raw_sales, raw_market, _ = self.data_generator.generate_raw_sources(days=35)
+        reconciler = HeterogeneousDataReconciler()
+        df = reconciler.reconcile(raw_web, raw_it, raw_sales, raw_market)
         self.global_model.train_global_model(df, target_col="kpi_value")
         self.anomaly_row = df.iloc[[-1]] # Keep the last row (anomaly day) for local SHAP later
 
