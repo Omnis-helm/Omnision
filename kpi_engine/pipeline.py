@@ -193,6 +193,7 @@ class KPIStorytellingEngine:
             
         latency_ms = int((time.time() - start_time) * 1000)
         tokens = final_state.get("tokens_consumed", 0)
+        self.supervisor.cumulative_token_spend += tokens
         cost_usd = round((tokens / 1000.0) * self.config.cost_per_1k_input_tokens_usd, 4)
         
         runtime_meta = RuntimeMetadataBlock(

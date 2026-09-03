@@ -82,7 +82,7 @@ def _generate_proposal(state: AgentState, llm_provider: str, persona: str, layer
         f"{web_intelligence}"
         f"Generate a robust operational solution.\n"
         f"You MUST return your response as a RAW, VALID JSON object with NO markdown formatting, NO intro text, and NO backticks.\n"
-        f"Required keys: action, source_layer, estimated_cost_usd, time_to_impact_minutes, raci_owner, approval_status.\n"
+        f"Required keys: action, source_layer, estimated_cost_usd, time_to_impact_minutes, raci_owner, approval_status, operational_lever_required.\n"
     )
     if feedback:
         prompt += f"\nPrevious Supervisor Feedback: {feedback}\nAddress this feedback in your new solution."
