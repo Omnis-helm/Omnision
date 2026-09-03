@@ -47,30 +47,44 @@ class ContextualRelevanceScorer:
         return matches / total_checks
 
     def compute_semantic_distance(self, anchor_text: str, node_text: str) -> float:
-        """Semantic Distance (Ws): Cosine word-overlap similarity."""
-        def tokenize(text: str) -> set:
-            words = re.findall(r"\b[a-zA-Z0-9_\-\.]+\b", text.lower())
-            # filter stop words
-            stopwords = {"the", "a", "an", "and", "or", "in", "on", "at", "to", "for", "of", "with", "by", "is", "was"}
-            return {w for w in words if w not in stopwords}
+        """Semantic Distance (Ws): Dense Cosine Similarity."""
+        try:
+            import numpy as np
+            from langchain_huggingface import HuggingFaceEmbeddings
+            from kpi_engine.ml.local_ml_engine import ThreadSafeModelLoader
+            
+            loader = ThreadSafeModelLoader()
+            embeddings = loader.get_or_load_model(
+                "hf_embeddings", 
+                lambda: HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+            )
+            vec1 = embeddings.embed_query(anchor_text)
+            vec2 = embeddings.embed_query(node_text)
+            dot_product = np.dot(vec1, vec2)
+            norm_a = np.linalg.norm(vec1)
+            norm_b = np.linalg.norm(vec2)
+            score = float(dot_product / (norm_a * norm_b)) if norm_a and norm_b else 0.0
+            return max(0.0, min(1.0, score))
+        except Exception:
+            def tokenize(text: str) -> set:
+                words = re.findall(r"\b[a-zA-Z0-9_\-\.]+\b", text.lower())
+                stopwords = {"the", "a", "an", "and", "or", "in", "on", "at", "to", "for", "of", "with", "by", "is", "was"}
+                return {w for w in words if w not in stopwords}
 
-        tokens_anchor = tokenize(anchor_text)
-        tokens_node = tokenize(node_text)
+            tokens_anchor = tokenize(anchor_text)
+            tokens_node = tokenize(node_text)
 
-        if not tokens_anchor or not tokens_node:
-            return 0.0
+            if not tokens_anchor or not tokens_node:
+                return 0.0
 
-        intersection = tokens_anchor.intersection(tokens_node)
-        union = tokens_anchor.union(tokens_node)
+            intersection = tokens_anchor.intersection(tokens_node)
+            union = tokens_anchor.union(tokens_node)
 
-        # Jaccard / Cosine overlap index
-        jaccard = len(intersection) / len(union) if union else 0.0
+            jaccard = len(intersection) / len(union) if union else 0.0
+            causal_keywords = {"timeout", "latency", "error", "failed", "outage", "spike", "drop", "discount", "tariff"}
+            boost = 0.25 if any(k in tokens_node for k in causal_keywords) else 0.0
 
-        # Keyword boost for technical / causal terms
-        causal_keywords = {"timeout", "latency", "error", "failed", "outage", "spike", "drop", "discount", "tariff"}
-        boost = 0.25 if any(k in tokens_node for k in causal_keywords) else 0.0
-
-        return min(1.0, max(0.0, jaccard + boost))
+            return min(1.0, max(0.0, jaccard + boost))
 
     def calculate_cr(
         self,

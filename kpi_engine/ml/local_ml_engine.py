@@ -83,28 +83,44 @@ class LocalSemanticSupervisor:
     @classmethod
     def evaluate_alignment(cls, primary_cause: str, proposed_action: str) -> Tuple[str, str, float]:
         """Evaluates whether the proposed action mathematically aligns with the primary cause."""
-        cause_tokens = cls.tokenize(primary_cause)
-        action_tokens = cls.tokenize(proposed_action)
+        import numpy as np
+        score = 0.0
+        try:
+            from langchain_huggingface import HuggingFaceEmbeddings
+            loader = ThreadSafeModelLoader()
+            embeddings = loader.get_or_load_model(
+                "hf_embeddings", 
+                lambda: HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+            )
+            vec1 = embeddings.embed_query(primary_cause)
+            vec2 = embeddings.embed_query(proposed_action)
+            dot_product = np.dot(vec1, vec2)
+            norm_a = np.linalg.norm(vec1)
+            norm_b = np.linalg.norm(vec2)
+            score = float(dot_product / (norm_a * norm_b)) if norm_a and norm_b else 0.0
+            score = max(0.0, min(1.0, score))
+        except Exception:
+            cause_tokens = cls.tokenize(primary_cause)
+            action_tokens = cls.tokenize(proposed_action)
 
-        if not cause_tokens or not action_tokens:
-            return "APPROVED", "Default alignment approved for empty parameters.", 0.85
+            if not cause_tokens or not action_tokens:
+                return "APPROVED", "Default alignment approved for empty parameters.", 0.85
 
-        intersection = cause_tokens.intersection(action_tokens)
-        union = cause_tokens.union(action_tokens)
-        jaccard = len(intersection) / len(union) if union else 0.0
+            intersection = cause_tokens.intersection(action_tokens)
+            union = cause_tokens.union(action_tokens)
+            jaccard = len(intersection) / len(union) if union else 0.0
 
-        # Technical domain keyword overlap bonus
-        tech_keywords = {"stripe", "gateway", "latency", "db", "database", "postgres", "timeout", "redis", "cache", "helm", "rollback", "scale"}
-        cause_tech = cause_tokens.intersection(tech_keywords)
-        action_tech = action_tokens.intersection(tech_keywords)
+            tech_keywords = {"stripe", "gateway", "latency", "db", "database", "postgres", "timeout", "redis", "cache", "helm", "rollback", "scale"}
+            cause_tech = cause_tokens.intersection(tech_keywords)
+            action_tech = action_tokens.intersection(tech_keywords)
 
-        tech_bonus = 0.40 if (cause_tech and action_tech and len(cause_tech.intersection(action_tech)) > 0) else 0.0
-        score = min(1.0, jaccard + tech_bonus)
+            tech_bonus = 0.40 if (cause_tech and action_tech and len(cause_tech.intersection(action_tech)) > 0) else 0.0
+            score = min(1.0, jaccard + tech_bonus)
 
         if score >= 0.15:
             return "APPROVED", f"Action logically aligns with root cause (semantic similarity score: {score:.2f}).", score
         else:
-            return "APPROVED", f"Action accepted under operational rules (semantic score: {score:.2f}).", score
+            return "REJECTED", f"Action does not sufficiently align with root cause (semantic score: {score:.2f}).", score
 
 
 class LocalVectorStore:

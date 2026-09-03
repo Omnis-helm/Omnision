@@ -38,8 +38,9 @@ class GlobalKPIModel:
                     "feature_names": self.feature_names,
                     "X_background": self.X_background
                 }, f)
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.warning(f"Failed to save model to disk: {e}")
 
     def load_from_disk(self, filepath=MODEL_FILE_PATH) -> bool:
         """Loads a pre-trained model state from disk if available."""
@@ -52,7 +53,9 @@ class GlobalKPIModel:
                 self.feature_names = data.get("feature_names", [])
                 self.X_background = data.get("X_background")
                 return self.model is not None
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.warning(f"Failed to load model from disk: {e}")
             return False
 
     def train_global_model(self, df: pd.DataFrame, target_col: str = "kpi_value", force_retrain: bool = False):
@@ -94,7 +97,9 @@ class GlobalKPIModel:
                         random_state=42
                     )
                     self.model.fit(X, y)
-                except Exception:
+                except Exception as e:
+                    import logging
+                    logging.warning(f"XGBoost training failed, falling back to GradientBoostingRegressor: {e}")
                     self.model = GradientBoostingRegressor(
                         n_estimators=50,
                         max_depth=4,

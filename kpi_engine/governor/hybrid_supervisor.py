@@ -9,13 +9,15 @@ from kpi_engine.governor.llm_factory import get_llm
 from kpi_engine.config import CONFIG
 from kpi_engine.governor.llm_state import AgentState
 
+import os
+
 def check_liveness_ping(action: str) -> bool:
     """Simulates a real-time network ping to an operational lever (e.g. AWS API, LaunchDarkly)."""
-    # For demo purposes, we randomly simulate a stale lever 10% of the time, 
-    # unless it explicitly says 'AWS' which we assume is up.
-    if "AWS" in action:
-        return True
-    return random.random() > 0.10
+    if os.environ.get("ENABLE_LIVENESS_SIMULATION", "False").lower() == "true":
+        if "AWS" in action:
+            return True
+        return random.random() > 0.10
+    return True
 
 
 def deterministic_validator_node(state: AgentState) -> Dict[str, Any]:
@@ -48,6 +50,18 @@ def deterministic_validator_node(state: AgentState) -> Dict[str, Any]:
     # 3.5 Stale Lever Liveness Check
     if not check_liveness_ping(action_str):
         return {"final_status": "REJECTED", "supervisor_feedback": "Technical lever failed liveness ping. The operational endpoint is currently unresponsive."}
+        
+    # 4. TheCritic Feasibility Checks (Integrated from TheCritic)
+    valid_action_keywords = ["rollback", "roll back", "shift", "isolate", "price", "hedge", "traffic", "switch", "migrate", "loyalty", "retry", "scale", "circuit breaker", "restart", "flush", "route"]
+    if not any(kw in action_str for kw in valid_action_keywords):
+        return {"final_status": "REJECTED", "supervisor_feedback": "Critic Verdict: REJECTED: Proposed action does not sufficiently neutralize the identified root cause. Provide an operational lever."}
+        
+    lever_required = latest_proposal.get("operational_lever_required")
+    if lever_required:
+        from kpi_engine.suggester.layers_data import PrescriptiveLayersStore
+        store = PrescriptiveLayersStore()
+        if not store.layer_3_active_levers.get(lever_required, False):
+            return {"final_status": "REJECTED", "supervisor_feedback": f"Critic Verdict: REJECTED: No active contract or technical capability with named provider ({lever_required})"}
             
     # 4. Financial Budget Check (Neuro-symbolic bounds)
     cost = float(latest_proposal.get("estimated_cost_usd", 0.0))

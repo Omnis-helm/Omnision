@@ -81,7 +81,9 @@ if not st.session_state.logged_in:
         submitted = st.form_submit_button("Login")
         
         if submitted:
-            if username in users_db and users_db[username]["password"] == password:
+            import hashlib
+            hashed_input = hashlib.sha256(password.encode('utf-8')).hexdigest()
+            if username in users_db and users_db[username].get("password_hash") == hashed_input:
                 st.session_state.logged_in = True
                 st.session_state.username = username
                 st.session_state.active_role = users_db[username]["role"]

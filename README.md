@@ -75,7 +75,7 @@ Omnision resolves AI hallucinations through a **Neuro-Symbolic Architecture**:
 ## 🛠️ Core Technology Stack
 
 - **Dashboard & User Interface:** Streamlit (v1.30+), Plotly (v5.0+), HTML5/CSS3 custom components.
-- **Machine Learning & Attribution Engine:** XGBoost (`XGBRegressor`), Scikit-Learn (`GradientBoostingRegressor`), SHAP TreeExplainer, NumPy, Pandas.
+- **Machine Learning & Attribution Engine:** XGBoost (`XGBRegressor`), Scikit-Learn (`GradientBoostingRegressor`), Custom Exact Shapley Engine, NumPy, Pandas.
 - **Graph & Mathematical Models:** NetworkX, Pure-Python Exact Shapley Cooperative Game Theory.
 - **Multi-Agent Orchestration & Swarm:** LangGraph, LangChain, Hybrid Supervisor Framework.
 - **LLM & NLP Integrations:** Google Gemini REST API (`gemini-3.6-flash`), OpenAI GPT-4o (`ChatOpenAI`), Anthropic Claude 3.5 Sonnet (`ChatAnthropic`), Ollama (`llama3`), HuggingFace FinBERT.
@@ -299,7 +299,7 @@ pip install -r requirements.txt
 
 ### 2. Launch Interactive Web Dashboard
 ```bash
-streamlit run app.py
+streamlit run kpi_engine/ui/streamlit_app.py
 ```
 > Opens in your browser at `http://localhost:8501`.
 
@@ -319,7 +319,7 @@ python -m pytest tests/
 ```
 
 ### Test Suite Summary (12 Test Cases):
-- `tests/test_causal_math_shap.py`: Verifies SHAP TreeExplainer attributions and exact Shapley game theory.
+- `tests/test_causal_math_shap.py`: Verifies Custom Exact Shapley Engine attributions and exact Shapley game theory.
 - `tests/test_closed_loop.py`: Verifies end-to-end pipeline execution, human RCA override cascade, model trust decay, and dynamic playbook appending.
 - `tests/test_cold_start.py`: Verifies EWMA calculations and phased handover triggers.
 - `tests/test_multi_agent_critic.py`: Verifies solution candidate scoring and supervisor feedback loops.

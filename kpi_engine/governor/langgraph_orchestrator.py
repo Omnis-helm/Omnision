@@ -72,8 +72,9 @@ def execute_langgraph_swarm(
             
             final_state = app.invoke(initial_state)
             return final_state
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.warning(f"LangGraph execution failed, falling back to sequential execution: {e}")
 
     # Direct local sequential execution fallback (Zero-dependency, 0ms latency)
     state = dict(initial_state)

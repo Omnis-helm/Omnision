@@ -202,6 +202,7 @@ class KartMitraDataGenerator:
         weather_severity = np.random.normal(2, 0.5, days)
         server_latency = np.random.normal(45, 10, days)
         
+        # NOTE: small N by design — ground-truth formula below, not meant to generalize
         # Target formula: baseline + 0.3*marketing - 0.5*competitor - 0.2*weather - 0.1*latency + noise
         kpi_value = 100 + (marketing_spend/1000 * 0.3) - (competitor_price * 0.5) - (weather_severity * 0.2) - (server_latency * 0.1) + np.random.normal(0, 1, days)
         
