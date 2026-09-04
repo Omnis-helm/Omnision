@@ -36,6 +36,7 @@ class SystemConfig(BaseModel):
 
     # Bounded Graph Construction (§2.4, §4)
     cage_pre_hours: int = 48
+    cage_pre_hours_drift: int = 720  # 30 days for systemic drift
     cage_post_hours: int = 12
     max_traversal_hops: int = 2
     edge_prune_weight_threshold: float = 0.50

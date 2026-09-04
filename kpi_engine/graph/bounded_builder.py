@@ -27,7 +27,13 @@ class BoundedGraphBuilder:
         """The Cage: Temporal Bounding & Dimensional Intersection."""
         surviving_nodes: List[CandidateNode] = []
 
-        window_start = anchor.timestamp - timedelta(hours=self.config.cage_pre_hours)
+        # Dynamic Caging: Stretch window for slow systemic drifts
+        if getattr(anchor, "trigger_rule", "") == "SYSTEMIC_DRIFT_ANOMALY":
+            lookback_hours = getattr(self.config, "cage_pre_hours_drift", 720)
+        else:
+            lookback_hours = getattr(self.config, "cage_pre_hours", 48)
+
+        window_start = anchor.timestamp - timedelta(hours=lookback_hours)
         window_end = anchor.timestamp + timedelta(hours=self.config.cage_post_hours)
 
         anchor_region = anchor.dimensions.get("region")

@@ -67,6 +67,31 @@ class TelemetryAnomalyDetector:
             )
             return True, anchor
 
+        # Dual-Window Systemic Drift Check (The Boiling Frog Solution)
+        import pandas as pd
+        all_values = values + [current_point.value]
+        if len(all_values) >= self.config.slow_ewma_days:
+            series = pd.Series(all_values)
+            fast_ewma = series.ewm(span=self.config.fast_ewma_days, adjust=False).mean().iloc[-1]
+            slow_ewma = series.ewm(span=self.config.slow_ewma_days, adjust=False).mean().iloc[-1]
+            drift_pct = ((fast_ewma - slow_ewma) / slow_ewma) * 100.0
+
+            if abs(drift_pct) >= self.config.systemic_drift_threshold_pct:
+                anchor = AnchorNode(
+                    kpi_id=contract.kpi_id,
+                    metric_name=contract.name,
+                    timestamp=current_point.timestamp,
+                    current_value=current_point.value,
+                    baseline_mean=round(slow_ewma, 4),
+                    baseline_std=round(std_val, 4),
+                    variance_pct=round(drift_pct, 2),
+                    z_score=round(z_score, 2),
+                    lifecycle_stage=LifecycleStage.MATURE,
+                    dimensions=current_point.dimensions,
+                    trigger_rule="SYSTEMIC_DRIFT_ANOMALY",
+                )
+                return True, anchor
+
         return False, None
 
     def scan_fleet(
