@@ -87,7 +87,11 @@ Omnision resolves AI hallucinations through a **Neuro-Symbolic Architecture**:
 
 ## ⚙️ Working Mechanics & Pipeline Architecture (8 Stages)
 
-### Stage 0 & 1: Data Telemetry & Anomaly Detection
+### Stage 0: Heterogeneous Data Ingestion & Reconciliation
+- **The ETL Layer:** Simulates real-world data fragmentation by ingesting 4 distinct sources: Hourly Web Analytics (JSON), Minutely IT Telemetry (CSV), Daily Sales (SQLite), and Weekly Market Vendors (Parquet).
+- **The Reconciler:** A dedicated `HeterogeneousDataReconciler` automatically resamples (upsampling/downsampling) these cadences into a single daily DataFrame containing **5 mathematically connected KPIs** (Traffic, AOV, Cart Abandonment, Checkout Conversion, Regional Revenue).
+
+### Stage 1: Data Telemetry & Anomaly Detection
 - **Z-Score Detection:** Monitors mature telemetry series ($30+$ days). Alert tripwire at $Z \ge 3.0$; severe shock tripwire at $Z \ge 5.0$.
 - **Cold-Start Handover:** For metrics with $< 30$ samples, switches automatically to Exponentially Weighted Moving Average (EWMA, $\alpha = 0.3$) and static tripwires ($5\%$ variance).
 
