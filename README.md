@@ -78,7 +78,7 @@ Omnision resolves AI hallucinations through a **Neuro-Symbolic Architecture**:
 - **Machine Learning & Attribution Engine:** XGBoost (`XGBRegressor`), Scikit-Learn (`GradientBoostingRegressor`), Custom Exact Shapley Engine, NumPy, Pandas.
 - **Graph & Mathematical Models:** NetworkX, Pure-Python Exact Shapley Cooperative Game Theory.
 - **Multi-Agent Orchestration & Swarm:** LangGraph, LangChain, Hybrid Supervisor Framework.
-- **LLM & NLP Integrations:** Google Gemini REST API (`gemini-3.6-flash`), OpenAI GPT-4o (`ChatOpenAI`), Anthropic Claude 3.5 Sonnet (`ChatAnthropic`), Ollama (`llama3`), HuggingFace FinBERT.
+- **LLM & NLP Integrations:** Google Gemini REST API (`gemini-3.6-flash`), OpenAI GPT-4o (`ChatOpenAI`), Google Gemini 3.6 Pro (`ChatAnthropic`), Ollama (`llama3`), HuggingFace FinBERT.
 - **Memory & Vector Search:** LocalVectorStore (TF-IDF + Cosine Similarity), FAISS Vector Store, SentenceTransformers (`all-MiniLM-L6-v2`).
 - **Concurrency & Local Acceleration:** ThreadSafeModelLoader (`threading.Lock()` mutexes), LRU query caching (`@lru_cache`), `LLMResponseCache`.
 - **Validation & API Standards:** Pydantic v2 schemas, FastAPI backend hooks, Python `pytest`.
