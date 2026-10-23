@@ -3,7 +3,9 @@ Pre-configured Enterprise Scenarios and Evidence Catalogs
 """
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
+
+import numpy as np
 from kpi_engine.data.models import (
     CandidateNode,
     CandidateNodeType,
@@ -11,7 +13,48 @@ from kpi_engine.data.models import (
     UserClearance,
     AnchorNode,
     LifecycleStage,
+    TelemetryPoint,
 )
+
+
+def build_history(
+    kpi_id: str,
+    end_time: datetime,
+    mean: float,
+    std: float,
+    n_days: int,
+    dimensions: Optional[Dict[str, str]] = None,
+    seed: int = 7,
+) -> List[TelemetryPoint]:
+    """Deterministic daily history whose sample mean / std (ddof=1) are exactly `mean` / `std`.
+
+    Seed scenarios describe a baseline (mean, std). Generating the history this way lets the
+    Stage-1 detector recompute the anchor's Z-score from raw telemetry instead of trusting a
+    hardcoded number, while staying reproducible.
+    """
+    rng = np.random.default_rng(seed)
+    z = rng.normal(0.0, 1.0, n_days)
+    if n_days > 1:
+        z = (z - z.mean()) / z.std(ddof=1)
+    values = mean + std * z
+    return [
+        TelemetryPoint(
+            timestamp=end_time - timedelta(days=n_days - i),
+            kpi_id=kpi_id,
+            value=round(float(v), 6),
+            dimensions=dict(dimensions or {}),
+        )
+        for i, v in enumerate(values)
+    ]
+
+
+def _observation(anchor: AnchorNode) -> TelemetryPoint:
+    return TelemetryPoint(
+        timestamp=anchor.timestamp,
+        kpi_id=anchor.kpi_id,
+        value=anchor.current_value,
+        dimensions=dict(anchor.dimensions),
+    )
 
 
 def get_scenario_1_stripe_outage(base_time: datetime) -> Dict[str, Any]:
@@ -53,7 +96,8 @@ def get_scenario_1_stripe_outage(base_time: datetime) -> Dict[str, Any]:
             security_tier=SecurityTier.PUBLIC_UNRESTRICTED,
             clearance_required=UserClearance.PUBLIC,
             raw_metric_values={"ticket_count": 142.0, "sentiment_score": -0.82, "drop_contrib": 0.24},
-            metadata={"zendesk_tag": "TICKET_PAYMENT_FAILURE", "layer": "downstream"},
+            metadata={"zendesk_tag": "TICKET_PAYMENT_FAILURE", "layer": "downstream",
+                      "causes": "NODE-SYS-101", "relation": "corroborates"},
         ),
         CandidateNode(
             node_id="NODE-MKT-303",
@@ -83,8 +127,11 @@ def get_scenario_1_stripe_outage(base_time: datetime) -> Dict[str, Any]:
 
     return {
         "scenario_id": "SCENARIO_1_STRIPE_GATEWAY_OUTAGE",
-        "title": "West Region Checkout Conversion Drop (-12.4%)",
+        "title": "West Region Checkout Conversion Drop (-12.5%)",
         "anchor": anchor,
+        "observation": _observation(anchor),
+        "history": build_history(anchor.kpi_id, base_time, anchor.baseline_mean, anchor.baseline_std, 30,
+                                 {"region": "West", "platform": "iOS"}, seed=101),
         "evidence_pool": evidence_pool,
         "context": {
             "cogs_moved": False,
@@ -127,7 +174,7 @@ def get_scenario_2_multivariate_price_volume(base_time: datetime) -> Dict[str, A
             security_tier=SecurityTier.PUBLIC_UNRESTRICTED,
             clearance_required=UserClearance.PUBLIC,
             raw_metric_values={"delta_p": -8.0, "p_base": 100.0, "v_base": 3500.0},
-            metadata={"driver_type": "price_change"},
+            metadata={"driver_type": "price_change", "layer": "downstream"},
         ),
         CandidateNode(
             node_id="NODE-VOL-202",
@@ -139,7 +186,7 @@ def get_scenario_2_multivariate_price_volume(base_time: datetime) -> Dict[str, A
             security_tier=SecurityTier.PUBLIC_UNRESTRICTED,
             clearance_required=UserClearance.PUBLIC,
             raw_metric_values={"delta_v": -217.4, "p_base": 100.0, "v_base": 3500.0},
-            metadata={"driver_type": "volume_change"},
+            metadata={"driver_type": "volume_change", "layer": "downstream"},
         ),
         CandidateNode(
             node_id="NODE-COMP-203",
@@ -151,7 +198,8 @@ def get_scenario_2_multivariate_price_volume(base_time: datetime) -> Dict[str, A
             security_tier=SecurityTier.PUBLIC_UNRESTRICTED,
             clearance_required=UserClearance.PUBLIC,
             raw_metric_values={"promo_discount": 0.20, "market_share_shift": 0.04},
-            metadata={"driver_type": "ambient_competitor"},
+            metadata={"driver_type": "ambient_competitor", "layer": "downstream",
+                      "causes": "NODE-VOL-202", "relation": "drives"},
         ),
         CandidateNode(
             node_id="NODE-MACRO-204",
@@ -163,7 +211,8 @@ def get_scenario_2_multivariate_price_volume(base_time: datetime) -> Dict[str, A
             security_tier=SecurityTier.PUBLIC_UNRESTRICTED,
             clearance_required=UserClearance.PUBLIC,
             raw_metric_values={"temperature_delta_f": 18.0, "grid_alert_level": 2.0},
-            metadata={"driver_type": "ambient_weather"},
+            metadata={"driver_type": "ambient_weather", "layer": "macro",
+                      "causes": "NODE-VOL-202", "relation": "drives"},
         ),
     ]
 
@@ -171,6 +220,9 @@ def get_scenario_2_multivariate_price_volume(base_time: datetime) -> Dict[str, A
         "scenario_id": "SCENARIO_2_MULTIVARIATE_DAG_SHAP",
         "title": "West Region Daily Net Revenue Drop (-13.7%) - Interacting Drivers",
         "anchor": anchor,
+        "observation": _observation(anchor),
+        "history": build_history(anchor.kpi_id, base_time, anchor.baseline_mean, anchor.baseline_std, 30,
+                                 {"region": "West"}, seed=202),
         "evidence_pool": evidence_pool,
         "context": {
             "cogs_moved": False,
@@ -219,6 +271,9 @@ def get_scenario_3_cold_start_kpi(base_time: datetime) -> Dict[str, Any]:
         "scenario_id": "SCENARIO_3_COLD_START_PHASED_HANDOVER",
         "title": "Cold-Start 1-Click Mobile Conversion Anomaly (-9.7%)",
         "anchor": anchor,
+        "observation": _observation(anchor),
+        "history": build_history(anchor.kpi_id, base_time, 4.10, 0.09, 6, {"platform": "Mobile"}, seed=303),
+        "surrogate_kpi_id": "KPI_EAST_CHECKOUT_CONV",
         "evidence_pool": evidence_pool,
         "context": {
             "kpi_id": "KPI_COLD_NEW_CHECKOUT_FLOW",
@@ -269,7 +324,7 @@ def get_scenario_4_security_clearance(base_time: datetime) -> Dict[str, Any]:
             timestamp=base_time - timedelta(hours=6),
             dimensions={"region": "West", "vendor": "3PL_Carrier_X"},
             security_tier=SecurityTier.TIER_2_TOKEN_MASKING,
-            clearance_required=UserClearance.JUNIOR_ANALYST,
+            clearance_required=UserClearance.SENIOR_ENGINEER,
             raw_metric_values={"penalty_amount_usd": 84500.0, "margin_impact_pct": -1.10},
             metadata={"vendor": "3PL_Carrier_X", "layer": "upstream"},
         ),
@@ -292,6 +347,9 @@ def get_scenario_4_security_clearance(base_time: datetime) -> Dict[str, Any]:
         "scenario_id": "SCENARIO_4_SECURITY_CLEARANCE_MATRIX",
         "title": "Gross Margin Drop (-10.1%) with Strategic Confidential Entities",
         "anchor": anchor,
+        "observation": _observation(anchor),
+        "history": build_history(anchor.kpi_id, base_time, anchor.baseline_mean, anchor.baseline_std, 30,
+                                 {"region": "West"}, seed=404),
         "evidence_pool": evidence_pool,
         "context": {
             "cogs_moved": True,

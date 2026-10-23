@@ -190,77 +190,97 @@ class KartMitraDataGenerator:
 
         return series, self.base_time
 
-    def generate_raw_sources(self, days: int = 35) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, datetime]:
-        """Generates 4 distinct heterogeneous data sources with 5 mathematically connected KPIs."""
-        base_time = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days-1)
-        dates = [base_time + timedelta(days=i) for i in range(days)]
-        
-        np.random.seed(42)
-        marketing_spend = np.random.normal(10000, 1500, days)
-        competitor_price = np.random.normal(50, 5, days)
-        weather_severity = np.random.normal(2, 0.5, days)
-        server_latency = np.random.normal(45, 10, days)
-        
-        kpi_value = 100 + (marketing_spend/1000 * 0.3) - (competitor_price * 0.5) - (weather_severity * 0.2) - (server_latency * 0.1) + np.random.normal(0, 1, days)
-        
-        # Anomaly
-        competitor_price[-1] = 30.0
+    # Ambient drivers of West daily net revenue used by the global ML model (Stage 4 SHAP)
+    REVENUE_BASE_USD = 350000.0
+    REVENUE_COEFFS = {
+        "marketing_spend": 5.0,        # +$5 revenue per $1 of spend above $10k
+        "competitor_price": 3000.0,    # competitor cutting price by $1 costs us $3k/day
+        "weather_severity": -6000.0,   # per unit of heat/grid severity index above 2.0
+        "server_latency": -600.0,      # per ms of p50 latency above 45ms
+    }
+    FEATURE_BASELINES = {"marketing_spend": 10000.0, "competitor_price": 50.0, "weather_severity": 2.0, "server_latency": 45.0}
+
+    def generate_raw_sources(
+        self, days: int = 365
+    ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, datetime]:
+        """Generates 4 heterogeneous sources whose reconciled daily table drives West daily net revenue.
+
+        Sources (cadence): Web analytics (hourly), IT telemetry (15-min), Sales SQL (daily),
+        Market vendor feed (weekly snapshots + an ad-hoc snapshot on the anomaly day).
+        The final day reproduces Scenario 2: RivalRetail's 20% flash sale (competitor price 50 -> 40),
+        a heatwave (weather index 4.5) and slightly elevated latency, producing a ~$48k revenue drop.
+        """
+        rng = np.random.default_rng(42)
+        end_day = self.base_time.replace(hour=0, minute=0, second=0, microsecond=0)
+        dates = [end_day - timedelta(days=days - 1 - i) for i in range(days)]
+
+        marketing_spend = rng.normal(10000, 1500, days)
+        server_latency = rng.normal(45, 8, days)
+        n_weeks = days // 7 + 1
+        competitor_weekly = rng.normal(50, 4, n_weeks)
+        weather_weekly = np.clip(rng.normal(2.0, 0.8, n_weeks), 0.0, None)
+        competitor_price = np.array([competitor_weekly[i // 7] for i in range(days)])
+        weather_severity = np.array([weather_weekly[i // 7] for i in range(days)])
+
+        # Anomaly day (Scenario 2)
+        competitor_price[-1] = 40.0
         weather_severity[-1] = 4.5
         server_latency[-1] = 50.0
-        kpi_value[-1] = 100 + (marketing_spend[-1]/1000 * 0.3) - (competitor_price[-1] * 0.5) - (weather_severity[-1] * 0.2) - (server_latency[-1] * 0.1)
+        marketing_spend[-1] = 10000.0
 
-        # 5 Connected KPIs
-        traffic = np.random.normal(25000, 2000, days)
-        aov = np.random.normal(65, 3, days)
-        cart_abandonment = 100 - (kpi_value * 0.5) + np.random.normal(0, 2, days)
-        regional_revenue = traffic * (kpi_value / 100) * aov
-        
-        # Source 1: Web Analytics (Hourly)
-        web_timestamps = []
-        web_traffic = []
-        web_abandonment = []
+        def revenue_fn(mkt, comp, wea, lat):
+            b = self.FEATURE_BASELINES
+            c = self.REVENUE_COEFFS
+            return (self.REVENUE_BASE_USD
+                    + c["marketing_spend"] * (mkt - b["marketing_spend"])
+                    + c["competitor_price"] * (comp - b["competitor_price"])
+                    + c["weather_severity"] * (wea - b["weather_severity"])
+                    + c["server_latency"] * (lat - b["server_latency"]))
+
+        regional_revenue = revenue_fn(marketing_spend, competitor_price, weather_severity, server_latency)
+        regional_revenue = regional_revenue + rng.normal(0, 4000, days)
+        regional_revenue[-1] = revenue_fn(marketing_spend[-1], competitor_price[-1], weather_severity[-1], server_latency[-1])
+
+        aov = rng.normal(100, 3, days)
+        orders = regional_revenue / aov
+        traffic = orders / 0.032  # ~3.2% conversion
+        cart_abandonment = rng.normal(68, 2, days)
+
+        # Source 1: Web analytics (hourly)
+        web_rows = []
         for i, d in enumerate(dates):
             for h in range(24):
-                web_timestamps.append(d + timedelta(hours=h))
-                web_traffic.append(traffic[i] + np.random.normal(0, 100))
-                web_abandonment.append(cart_abandonment[i] + np.random.normal(0, 1))
-        web_df = pd.DataFrame({"timestamp": web_timestamps, "traffic": web_traffic, "cart_abandonment": web_abandonment})
-        
-        # Source 2: IT Logs (Minutely) - simulated as every 15 mins for performance
-        it_timestamps = []
-        it_latency = []
+                web_rows.append((d + timedelta(hours=h), traffic[i] / 24 + rng.normal(0, 20), cart_abandonment[i] + rng.normal(0, 1)))
+        web_df = pd.DataFrame(web_rows, columns=["timestamp", "traffic", "cart_abandonment"])
+        # Hourly traffic is a count -> daily SUM; restore to per-day units in the reconciler via mean*24
+        web_df["traffic"] = web_df["traffic"] * 24
+
+        # Source 2: IT telemetry (every 15 minutes)
+        it_rows = []
         for i, d in enumerate(dates):
-            for m in range(0, 24*60, 15):
-                it_timestamps.append(d + timedelta(minutes=m))
-                it_latency.append(server_latency[i] + np.random.normal(0, 2))
-        it_df = pd.DataFrame({"timestamp": it_timestamps, "server_latency": it_latency})
-        
-        # Source 3: Market Data (Weekly Snapshot)
-        market_timestamps = []
-        market_comp = []
-        market_weather = []
-        for i in range(0, days, 7):
-            market_timestamps.append(dates[i])
-            market_comp.append(competitor_price[i])
-            market_weather.append(weather_severity[i])
-        if dates[-1] not in market_timestamps:
-            market_timestamps.append(dates[-1])
-            market_comp.append(competitor_price[-1])
-            market_weather.append(weather_severity[-1])
-            
+            for m in range(0, 24 * 60, 15):
+                it_rows.append((d + timedelta(minutes=m), server_latency[i] + rng.normal(0, 2)))
+        it_df = pd.DataFrame(it_rows, columns=["timestamp", "server_latency"])
+        # Remove the zero-mean measurement noise from the daily aggregate exactly
+        it_df["server_latency"] = it_df.groupby(it_df["timestamp"].dt.normalize())["server_latency"].transform(
+            lambda x: x - x.mean()) + np.repeat(server_latency, 96)
+
+        # Source 3: Market vendor feed (weekly snapshots + anomaly-day snapshot)
+        snap_idx = list(range(0, days, 7))
+        if days - 1 not in snap_idx:
+            snap_idx.append(days - 1)
         market_df = pd.DataFrame({
-            "timestamp": market_timestamps, 
-            "competitor_price": market_comp, 
-            "weather_severity": market_weather
+            "timestamp": [dates[i] for i in snap_idx],
+            "competitor_price": [competitor_price[i] for i in snap_idx],
+            "weather_severity": [weather_severity[i] for i in snap_idx],
         })
-        
-        # Source 4: Sales SQL (Daily)
+
+        # Source 4: Sales SQL (daily)
         sales_df = pd.DataFrame({
             "timestamp": dates,
-            "kpi_value": kpi_value,
             "regional_revenue": regional_revenue,
             "aov": aov,
-            "marketing_spend": marketing_spend
+            "marketing_spend": marketing_spend,
         })
-        
-        return web_df, it_df, sales_df, market_df, base_time
+
+        return web_df, it_df, sales_df, market_df, end_day

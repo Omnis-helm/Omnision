@@ -85,6 +85,27 @@ def test_multiplicative_composite_weight_zero_collapse():
 
     results = scorer.score_candidate_nodes(anchor, [noise_node], {})
     node, w, cr, ci, tier, _ = results[0]
+    assert ci == 0.0
 
     # CI is low / 0, so W collapses
     assert w < 0.25
+
+
+def test_global_model_shap_has_no_leakage_and_blames_competitor():
+    """The global model only sees ambient drivers and SHAP attributes the anomaly to the competitor sale."""
+    from kpi_engine.data.generator import KartMitraDataGenerator
+    from kpi_engine.data.reconciler import HeterogeneousDataReconciler
+    from kpi_engine.ml.global_model import GlobalKPIModel
+
+    web, it, sales, market, _ = KartMitraDataGenerator().generate_raw_sources()
+    df = HeterogeneousDataReconciler().reconcile(web, it, sales, market)
+    model = GlobalKPIModel()
+    model.train_global_model(df)
+    assert set(model.feature_names) == {"marketing_spend", "competitor_price", "weather_severity", "server_latency"}
+    assert "regional_revenue" not in model.feature_names and "cart_abandonment" not in model.feature_names
+
+    res = ShapleyCausalEngine.evaluate_with_global_model(model, df.iloc[[-1]])
+    rel = res["relative_attribution"]
+    assert rel["competitor_price"] < 0 and rel["weather_severity"] < 0       # both push revenue down
+    assert abs(rel["competitor_price"]) == max(abs(v) for v in rel.values())  # competitor dominates
+    assert abs(res["additivity_gap"]) < 1e-6                                   # exact Shapley is efficient

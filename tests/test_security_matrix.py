@@ -78,3 +78,36 @@ def test_tier_2_token_masking_junior_analyst():
     assert "<REDACTED_DOLLAR_VALUE>" in masked_node.title
     assert audit["masked_nodes_count"] == 1
     assert audit["abstain_recommended"] is False
+
+
+def test_tier_2_masked_before_public_llm_even_for_vp():
+    sec = HybridSecurityMatrix()
+    node = CandidateNode(
+        node_id="N1", node_type=CandidateNodeType.OPERATIONAL_LOG, title="SLA penalty",
+        content="Penalty fee of $84,500 assessed", timestamp=datetime(2026, 8, 30),
+        security_tier=SecurityTier.TIER_2_TOKEN_MASKING, clearance_required=UserClearance.SENIOR_ENGINEER)
+    cleared, _ = sec.apply_security_governance([node], UserClearance.EXECUTIVE_VP)
+    assert "$84,500" in cleared[0].content                     # VP sees it in the UI
+    outbound = sec.mask_for_external_llm(cleared)
+    assert "$84,500" not in outbound[0].content and outbound[0].is_masked
+    assert node.content == "Penalty fee of $84,500 assessed"   # input never mutated
+
+
+def test_backend_blocks_public_llm_for_non_vp():
+    import pytest
+    from kpi_engine.auth import assert_providers_allowed
+    assert_providers_allowed(UserClearance.EXECUTIVE_VP, "openai", "gemini")
+    assert_providers_allowed(UserClearance.JUNIOR_ANALYST, "ollama", "mock")
+    with pytest.raises(PermissionError):
+        assert_providers_allowed(UserClearance.SENIOR_ENGINEER, "openai")
+
+
+def test_scenario_4_abstains_for_engineer_and_analyst_with_receipt():
+    from kpi_engine.pipeline import KPIStorytellingEngine
+    engine = KPIStorytellingEngine()
+    for role in (UserClearance.SENIOR_ENGINEER, UserClearance.JUNIOR_ANALYST):
+        res = engine.run_pipeline("SCENARIO_4_SECURITY_CLEARANCE_MATRIX", role)
+        assert res["status"] == "ABSTAINED"
+        assert len(res["security_audit"]["audit_receipt_sha256"]) == 64
+        assert "NODE-SEC-401" not in str(res["security_audit"])  # pruned ids are not leaked
+    assert engine.run_pipeline("SCENARIO_4_SECURITY_CLEARANCE_MATRIX", UserClearance.EXECUTIVE_VP)["status"] == "SUCCESS"
