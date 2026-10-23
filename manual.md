@@ -1,219 +1,82 @@
-# 📘 Omnision Dashboard User Manual & Operational Guidelines
+# 📘 Omnision Dashboard Manual
 
-Welcome to the **Omnision Autonomous KPI Storytelling & Causal Governance Dashboard**. This user manual provides step-by-step guidelines for operating the web interface, conducting root-cause investigations, executing manual RCA overrides, and enforcing enterprise governance controls.
-
----
-
-## 📋 Table of Contents
-1. [Launching & Accessing the Dashboard](#1-launching--accessing-the-dashboard)
-2. [Authentication & Role Clearances (RBAC)](#2-authentication--role-clearances-rbac)
-3. [Sidebar Control Center Navigation](#3-sidebar-control-center-navigation)
-4. [Top KPI Metrics Strip](#4-top-kpi-metrics-strip)
-5. [Main Investigation Tabs](#5-main-investigation-tabs)
-   - [Tab 1: 📊 Executive Narrative](#tab-1--executive-narrative)
-   - [Tab 2: 🌳 Causal DAG & Math Proofs](#tab-2--causal-dag--math-proofs)
-   - [Tab 3: 🚀 Blue-Sky Challenger & Solutions](#tab-3--blue-sky-challenger--solutions)
-   - [Tab 4: 🛠️ Engineer & Ops Playbook](#tab-4--engineer--ops-playbook)
-   - [Tab 5: 🔄 Human-in-the-Loop & Continuous Learning](#tab-5--human-in-the-loop--continuous-learning)
-6. [Security Boundaries & Graceful Abstention](#6-security-boundaries--graceful-abstention)
-7. [Troubleshooting & FAQs](#7-troubleshooting--faqs)
+How to run investigations, read the causal story, govern fixes and teach the engine.
 
 ---
 
-## 1. Launching & Accessing the Dashboard
-
-### Terminal Startup Command
-Open your terminal in the project root directory and run:
-
+## 1. Launch
 ```bash
 streamlit run app.py
 ```
+Opens at `http://localhost:8501`. The first start trains the global model (a few seconds); later starts load it from
+`kpi_engine/ml/saved_global_model.pkl`.
 
-### Access URL
-Once started, the application opens automatically in your web browser at:
-- **Local URL:** `http://localhost:8501`
+## 2. Log in
 
----
+| Username | Password | Role | Can do |
+|---|---|---|---|
+| `admin` | `adminpassword` | `EXECUTIVE_VP` | Everything: public cloud LLMs, Tier 1 secrets, approve any spend, promote Blue-Sky ideas |
+| `engineer` | `engineerpassword` | `SENIOR_ENGINEER` | Private LLMs only, override root causes, approve/deny fixes up to $100k |
+| `analyst` | `analystpassword` | `JUNIOR_ANALYST` | Private LLMs only, read-only; Tier 2 values masked |
 
-## 2. Authentication & Role Clearances (RBAC)
+Change these before sharing the app: `python -m kpi_engine.auth set-password <user> <ROLE>`.
 
-Omnision uses strict Role-Based Access Control (RBAC) to enforce enterprise security and prevent data leakage to public cloud LLMs.
+## 3. Sidebar
+- **Benchmark scenario:** the four reference incidents.
+- **Primary / Blue-Sky LLM:** only providers your role may use are listed. `mock` runs fully offline using the
+  grounded playbook network and a template narrative; `ollama` calls your local model; `openai` / `anthropic` /
+  `gemini` need a key in `.env`. A missing key or an outage shows a warning, and the engine falls back to grounded
+  playbooks instead of failing. With a public provider, Tier 2 evidence is masked before it leaves.
+- **Bypass semantic cache:** recompute instead of serving the cached payload (cached runs cost 0 tokens).
+- **Reset human overrides for this scenario:** clears verified drivers, demotions and denied fixes for the KPI.
+- **Fleet telemetry:** cumulative tokens and cost, cached payloads, Layer 1 playbook count, live fleet scan.
 
-![Login Screen](file:///C:/Users/arind/.gemini/antigravity-ide/brain/7721a049-4736-4c72-ab29-c2ac78434587/dashboard_full_view_1788263002830.png)
+## 4. Header metrics
+Anchor KPI · current value and % change · Z-score (or the trigger rule) · lifecycle stage (`MATURE` /
+`COLD_START`) · security applied (`PUBLIC_UNRESTRICTED`, `TIER_2_TOKEN_MASKING`, or Tier 1 pruning).
 
-### Login Credentials Database (`kpi_engine/users.json`)
+## 5. Tabs
 
-| Username | Password | Role Clearance | Permissions & Access Scope |
-| :--- | :--- | :--- | :--- |
-| **`admin`** | `adminpassword` | **`EXECUTIVE_VP`** | **Full Access:** Unlocks Public Cloud LLMs (OpenAI, Anthropic, Gemini), cleared strategic M&A logs, and VP approval controls. |
-| **`engineer`** | `engineerpassword` | **`SENIOR_ENGINEER`** | **Technical Access:** Locked to private hosted models (`ollama`, `mock`, `local`), full technical logs & execution playbooks. |
-| **`analyst`** | `analystpassword` | **`JUNIOR_ANALYST`** | **Restricted Access:** Locked to private hosted models (`ollama`, `mock`, `local`), redacted executive views. |
+### Tab 1 · Executive narrative
+- Financial exposure, business risk, primary causal weight and its confidence (`HIGH`, `LOW`, `HUMAN_VERIFIED`).
+- **The story:** what moved, by how much, the causal chain, what memory recalls and what was ruled out. Its source
+  (LLM or deterministic template) is shown under it, with the governance status.
+- **Root cause:** confirm it, or open *Override root cause*:
+  - *Promote other evidence* – pick another node;
+  - *Inject verified root cause* – type what really happened;
+  - *Flag as noise* – teaches memory that this pattern is a false alarm (later alerts are suppressed).
+- **Governed mitigation actions:** only fixes approved by the Critic **and** the Supervisor. Each card shows cost,
+  time to impact, expected recovery, RACI owner, approval tier and both verdicts.
+  - *Approve* – raises the trust weight of the agent that proposed it. VP-tier spend needs `EXECUTIVE_VP`.
+  - *Deny* – removes the fix for this KPI, lowers that agent's trust, and regenerates alternatives.
+  - *Modify & approve* – records what you actually ran; it becomes a new Layer 1 playbook.
 
-> 💡 **Tip:** To add new users or update passwords, edit the `kpi_engine/users.json` file in your repository.
+### Tab 2 · Causal DAG & math
+- Graph: red anchor, green hop-1 drivers, purple hop-2 drivers or corroboration, grey dotted memory, yellow masked.
+- Scoring table: Wt, We, Ws → CR; Wcf → CI; W = CR × CI; evidence tier; surviving vs discarded.
+- Scenario 2 adds the price × volume metric tree and the SHAP bar chart from the global model.
+- Expanders: Stage 1 detection report, what the Cage pruned or scoped out, every discarded candidate with its reason.
 
----
+### Tab 3 · Blue-sky challenger
+One unconstrained idea with a Reality Checker critique. It is never auto-approved; a VP can *Promote to main*, which
+adds it to Tab 1 as `PROMOTED_FROM_SANDBOX` (requires a shadow run).
 
-## 3. Sidebar Control Center Navigation
+### Tab 4 · Engineer & ops playbook
+Technical root cause, evidence log stream, the execution command for the top approved fix (plus alternatives) and
+the ops view (bottleneck, SLA impact, owners). Commands are handed to the owner; Omnision never executes them.
 
-The left sidebar serves as the control center for configuring pipeline runs:
+### Tab 5 · Telemetry & learning
+Latency, input/output tokens, cost, cache status, LLM fallbacks, agent trust weights with the feedback log, the
+current semantic threshold, human overrides and denied fixes, the Layer 1 playbook library and the raw payload JSON.
 
-### 1. Benchmark Scenario Selector
-Select one of 4 pre-configured enterprise scenario benchmarks:
-- **Scenario 1:** `1. Stripe v4.1 Gateway Latency Outage (-12.4%)`
-- **Scenario 2:** `2. Interacting Price & Volume Drivers (DAG + SHAP)`
-- **Scenario 3:** `3. Cold-Start 1-Click Mobile Checkout (<30d)`
-- **Scenario 4:** `4. Hybrid Security Matrix (Tier 1 & Tier 2)`
+## 6. Graceful abstention
+`SENIOR_ENGINEER` and `JUNIOR_ANALYST` opening Scenario 4 see **Graceful abstention enforced**: the main driver is a
+Tier 1 secret (unannounced M&A), so the engine refuses to tell a partial story. An audit receipt (SHA-256) is shown.
+Sign in as an `EXECUTIVE_VP` to see the full investigation.
 
-### 2. AI Core Engine Selection
-Choose the LLM models for the dual-node swarm:
-- **Primary LLM (RCA & Storytelling):** Generates prescriptive RCA and grounded operational solutions.
-- **Blue-Sky LLM (Shadow Ideation):** Generates unconstrained alternative proposals for shadow runs.
-- *Supported Options:* `openai`, `anthropic`, `gemini`, `ollama`, `mock`, `local`.
-
-> ⚠️ **Data Leak Protection Rule:** If logged in as `SENIOR_ENGINEER` or `JUNIOR_ANALYST`, selecting a public provider (`openai`, `anthropic`, `gemini`) will trigger an RBAC access violation block to prevent PII leakage.
-
-### 3. Bypass Semantic Cache (Force Fresh Inference)
-- **Unchecked (Default):** Uses `LLMResponseCache` and pre-calculated model results to deliver instant **< 25ms** response times with 0 token spend.
-- **Checked:** Bypasses local caches and re-triggers fresh model inference.
-
-### 4. Fleet Telemetry & Memory Metrics
-- **Cumulative Tokens Consumed:** Real-time counter of total LLM tokens spent.
-- **Semantic Cached Payloads:** Number of active cached scenario payloads in memory.
-- **Active Layer 1 Playbooks:** Number of stored internal runbooks available.
-
----
-
-## 4. Top KPI Metrics Strip
-
-Upon running a scenario, the top header bar displays immediate diagnostic telemetry:
-
-```
-┌─────────────────┬─────────────────┬───────────────────┬───────────────────┬─────────────────────┐
-│ ANCHOR METRIC   │ CURRENT VALUE   │ Z-SCORE SHOCK     │ LIFECYCLE STAGE   │ SECURITY APPLIED    │
-├─────────────────┼─────────────────┼───────────────────┼───────────────────┼─────────────────────┤
-│ West Conv Rate  │ 2.80% (-12.50%) │ Z = 5.19 (Severe) │ MATURE            │ PUBLIC_UNRESTRICTED │
-└─────────────────┴─────────────────┴───────────────────┴───────────────────┴─────────────────────┘
-```
-
-- **Anchor Metric:** The ground-zero KPI isolated by the engine.
-- **Current Value:** Latest measured value and percentage variance from baseline mean.
-- **Z-Score Shock:** Mathematical standard score ($Z \ge 3.0$ Anomaly, $Z \ge 5.0$ Severe Shock).
-- **Lifecycle Stage:** `MATURE` ($30+$ days history) vs `COLD_START` ($< 30$ days history).
-- **Security Applied:** Active data classification (e.g., `PUBLIC_UNRESTRICTED`, `TIER_2_TOKEN_MASKING`).
-
----
-
-## 5. Main Investigation Tabs
-
-The main workspace area is divided into 5 interactive tabs:
-
----
-
-### Tab 1: 📊 Executive Narrative
-*Designed for C-suite executives, VPs, and Product Managers.*
-
-- **Financial Impact ($):** Estimated revenue loss or operational risk exposure.
-- **Business Risk Level:** Clear status badge (`HIGH`, `MEDIUM`, or `LOW`).
-- **Recommended Action Cards:**
-  - **Action Title & Description:** Clear operational solution (e.g., `"Roll back Stripe v4.1 gateway integration"`).
-  - **Cost & Impact Estimates:** Estimated cost in USD and expected time-to-impact in minutes.
-  - **RACI Owner:** Assigned responsible team (e.g., `Platform Engineering`).
-  - **Approval Status Badge:** `AUTO_APPROVED`, `PENDING_VP_APPROVAL`, or `BLOCKED_BY_GUARDRAIL`.
-
----
-
-### Tab 2: 🌳 Causal DAG & Math Proofs
-*Designed for Data Scientists, Analysts, and Incident Leads.*
-
-- **Interactive Directed Acyclic Graph (DAG):** Visualizes causal edges originating from the Anchor Node ($A^*$) out to Tier 1, Tier 2, and Tier 3 dependencies.
-- **Composite Causal Weights Table:**
-  Displays the mathematical proof for candidate ranking:
-  $$\text{Composite Weight } W = \text{Contextual Relevance } (CR) \times \text{Causal Impact } (CI)$$
-- **SHAP Attribution Chart:** Displays relative variance percentages for ambient variables (e.g. competitor promotions, weather spikes) derived from the trained **XGBoost Regressor**.
-- **Discarded Noise Candidates:** Lists candidate logs that were pruned by "The Cage" or "The Brakes" as noise.
-
----
-
-### Tab 3: 🚀 Blue-Sky Challenger & Solutions
-*Designed for Architecture & Strategy teams.*
-
-- **Unconstrained Shadow Run Proposals:** Displays creative, alternative mitigation ideas generated by the Blue-Sky Challenger persona (e.g., `"Migrate checkout cluster to alternate cloud provider"`).
-- **Comparative Risk & Cost Matrix:** Contrasts grounded runbook solutions with high-impact challenger ideas.
-
----
-
-### Tab 4: 🛠️ Engineer & Ops Playbook
-*Designed for DevOps, SREs, and On-Call Engineers.*
-
-- **Technical Root Cause:** Exact log text and component ID causing the anomaly.
-- **System Logs Stream:** Raw telemetry log entries.
-- **Terminal Execution Playbook:**
-  - **Target Environment:** `production-cluster`, `prod-traffic-mesh`, etc.
-  - **Execution Command:** Copy-paste terminal command ready for immediate execution:
-    ```bash
-    helm rollback stripe-gateway 4.0 && traffic-router set --split stripe:85,adyen:15
-    ```
-
----
-
-### Tab 5: 🔄 Human-in-the-Loop & Continuous Learning
-*Designed for Analysts overriding AI decisions and training the continuous learning loop.*
-
-#### 1. Human RCA Override Panel
-If the AI selects a secondary or incorrect root cause:
-1. Select the **Demoted Driver** from the dropdown.
-2. Select a **Promoted Driver** or check **Inject Custom Root Cause**.
-3. Type custom explanatory text (e.g., `"Critical database deadlocks on postgres checkout_sessions table"`).
-4. Click **Apply RCA Override & Recalibrate**.
-5. *Result:* The engine recalibrates its semantic threshold ($\eta = 0.05$), demotes the false driver, and regenerates governed playbooks.
-
-#### 2. Reject Recommended Fix Panel
-If a proposed fix cannot be executed due to operational constraints:
-1. Type your feedback (e.g., `"Cannot scale deployment due to regional cloud quota limits"`).
-2. Click **Reject Recommended Fix & Re-synthesize**.
-3. *Result:* The engine appends the rejection feedback to context and dispatches the swarm to generate an alternative solution.
-
----
-
-## 6. Security Boundaries & Graceful Abstention
-
-When a user logged in as `SENIOR_ENGINEER` or `JUNIOR_ANALYST` selects **Scenario 4 (Security Clearance Matrix)**:
-
-1. **Security Policy Enforcement:**
-   The primary root cause relates to a **Tier 1 Strategic Domain** (e.g., unannounced M&A advisor fees).
-2. **Graceful Abstention Screen:**
-   Rather than hallucinating false secondary reasons or leaking confidential data, Omnision displays a **Graceful Abstention** notice:
-   
-   > 🛡️ **Omnision Security Boundary: Graceful Abstention Enforced**
-   > *Primary causal driver pruned under Tier 1 Strategic Security Policy.*
-
-3. **Elevate Clearance Button:**
-   Users with proper authorization can click **"🔓 Elevate Clearance to EXECUTIVE_VP"** to switch roles and unlock the complete investigation.
-
----
-
-## 7. Troubleshooting & FAQs
-
-### Q1: The browser shows a blank dark screen when opening `http://localhost:8501`.
-- **Cause:** No LLM provider was selected in the sidebar, or Streamlit halted execution.
-- **Solution:** Select `"gemini"` or `"mock"` in the **Primary LLM** and **Blue-Sky LLM** sidebar dropdowns, or refresh the page.
-
-### Q2: How do I enable real Google Gemini or OpenAI API calls?
-1. Open your `.env` file in the project root.
-2. Set your keys:
-   ```ini
-   GOOGLE_API_KEY=your_gemini_api_key_here
-   OPENAI_API_KEY=your_openai_api_key_here
-   ```
-3. Ensure you are logged in as `admin` (`EXECUTIVE_VP` tier).
-4. Select `"gemini"` or `"openai"` in the sidebar dropdowns.
-
-### Q3: How do I clear cached responses and force fresh ML/LLM inference?
-Check the **"Bypass Semantic Cache (Force Fresh Inference)"** checkbox in the left sidebar.
-
-### Q4: How do I run the automated test suite?
-Run the following command in your terminal:
-```bash
-python -m pytest tests/
-```
-All 12 test cases will execute and verify causal scoring, security pruning, and closed-loop learning.
+## 7. FAQ
+- **Why does a run say "Served from the semantic cache"?** Same scenario, role, providers and learning state as a
+  previous run. Tick *Bypass semantic cache* to recompute.
+- **The LLM output looks generic.** Check Tab 5 for fallbacks: a missing key or an unreachable model makes the
+  engine use grounded playbooks and the template narrative.
+- **Run the tests:** `python -m pytest tests/` (34 tests).

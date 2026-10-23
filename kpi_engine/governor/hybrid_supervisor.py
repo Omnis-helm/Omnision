@@ -1,174 +1,102 @@
 """
 Hybrid Neuro-Symbolic Supervisor
+
+Layer 2 of governance (after the deterministic Critic): checks that each surviving proposal is
+logically aligned with the causal evidence.
+  * mock / local / unreachable LLM -> LocalSemanticSupervisor (deterministic semantic alignment)
+  * cloud or Ollama provider       -> LLM review in strict JSON; any error falls back to the local check
+                                      (fail closed: an error is never an approval)
 """
-import os
-import json
-import random
-from typing import Dict, Any
-from kpi_engine.governor.llm_factory import get_llm
+from typing import Dict, Any, List, Tuple
+
 from kpi_engine.config import CONFIG
-from kpi_engine.governor.llm_state import AgentState
-
-import os
-
-def check_liveness_ping(action: str) -> bool:
-    """Simulates a real-time network ping to an operational lever (e.g. AWS API, LaunchDarkly)."""
-    if os.environ.get("ENABLE_LIVENESS_SIMULATION", "False").lower() == "true":
-        if "AWS" in action:
-            return True
-        return random.random() > 0.10
-    return True
-
-
-def deterministic_validator_node(state: AgentState) -> Dict[str, Any]:
-    """Layer 1: Hardcoded rules and schema checks."""
-    proposals = state.get("proposals", [])
-    if not proposals:
-        return {"final_status": "REJECTED", "supervisor_feedback": "No proposals generated."}
-        
-    latest_proposal = proposals[-1]
-    iterations = state.get("iteration_count", 0)
-    
-    # 1. Max Iterations Check
-    max_iters = CONFIG.swarm_max_iterations
-    if iterations >= max_iters:
-        return {"final_status": "MAX_ITERATIONS_REACHED", "supervisor_feedback": f"Max iterations ({max_iters}) reached."}
-        
-    # 2. Schema Check
-    required_keys = ["action", "estimated_cost_usd", "raci_owner"]
-    for key in required_keys:
-        if key not in latest_proposal:
-            return {"final_status": "REJECTED", "supervisor_feedback": f"Invalid JSON Schema: Missing '{key}'"}
-            
-    # 3. Security / Forbidden Action Check (Simulated PII/Destructive actions)
-    action_str = latest_proposal.get("action", "").lower()
-    from kpi_engine.config import FORBIDDEN_ACTION_KEYWORDS
-    for term in FORBIDDEN_ACTION_KEYWORDS:
-        if term in action_str:
-            return {"final_status": "REJECTED", "supervisor_feedback": f"Security Violation: '{term}' is strictly forbidden."}
-
-    # 3.5 Stale Lever Liveness Check
-    if not check_liveness_ping(action_str):
-        return {"final_status": "REJECTED", "supervisor_feedback": "Technical lever failed liveness ping. The operational endpoint is currently unresponsive."}
-        
-    # 4. TheCritic Feasibility Checks (Integrated from TheCritic)
-    from kpi_engine.config import VALID_ACTION_KEYWORDS
-    if not any(kw in action_str for kw in VALID_ACTION_KEYWORDS):
-        return {"final_status": "REJECTED", "supervisor_feedback": "Critic Verdict: REJECTED: Proposed action does not sufficiently neutralize the identified root cause. Provide an operational lever."}
-        
-    lever_required = latest_proposal.get("operational_lever_required")
-    if lever_required:
-        from kpi_engine.suggester.layers_data import PrescriptiveLayersStore
-        store = PrescriptiveLayersStore()
-        if not store.layer_3_active_levers.get(lever_required, False):
-            return {"final_status": "REJECTED", "supervisor_feedback": f"Critic Verdict: REJECTED: No active contract or technical capability with named provider ({lever_required})"}
-            
-    # 4. Financial Budget Check (Neuro-symbolic bounds)
-    cost = float(latest_proposal.get("estimated_cost_usd", 0.0))
-    if cost > CONFIG.vp_approval_required_cost_usd:
-        # Only reject if we don't have logic handling VP approval, but let's just reject for demo bounds
-        return {"final_status": "REJECTED", "supervisor_feedback": f"Cost exceeds ultimate bounds (${CONFIG.vp_approval_required_cost_usd})."}
-        
-    # Passed all deterministic checks, route to LLM Supervisor
-    return {"final_status": "PENDING_LLM_REVIEW", "supervisor_feedback": "Passed deterministic validation."}
-
 from kpi_engine.ml.local_ml_engine import LocalSemanticSupervisor
+from kpi_engine.suggester.llm_swarm import call_llm_json, LOCAL_PROVIDERS
 
-def llm_supervisor_node(state: AgentState) -> Dict[str, Any]:
-    """Layer 2: LLM or Local Semantic Supervisor logically reviews the proposal."""
-    status = state.get("final_status")
-    if status != "PENDING_LLM_REVIEW":
-        return {} # Don't overwrite if rejected by deterministic layer
-        
-    proposals = state.get("proposals", [])
-    latest_proposal = proposals[-1]
-    evidence = state.get("causal_evidence", [])
-    primary_cause = evidence[0].get("content", "Unknown") if evidence else "Unknown"
-    proposed_action = latest_proposal.get("action", "")
 
-    provider = state.get("primary_llm_provider", "mock")
+def driver_texts(evidence: List[Dict[str, Any]]) -> List[str]:
+    """Ranked causal chain texts (hop-1 drivers first, then their upstream causes)."""
+    ranked = sorted(evidence, key=lambda e: (e.get("hop", 1), -e.get("causal_weight", 0.0)))
+    return [f"{e.get('title', '')} {e.get('content', '')}" for e in ranked[:5]]
 
-    # Fast Local/Mock Semantic Alignment Check
-    if provider in ["mock", "local"] or getattr(CONFIG, "prefer_local_tools", True):
-        decision, reason, _ = LocalSemanticSupervisor.evaluate_alignment(primary_cause, proposed_action)
-        return {
-            "final_status": decision,
-            "supervisor_feedback": reason,
-            "tokens_consumed": state.get("tokens_consumed", 0)
-        }
-    
-    llm = get_llm(provider=provider, temperature=0.0)
-    
+
+def local_review(evidence: List[Dict[str, Any]], proposals: List[Dict[str, Any]]) -> List[Tuple[str, str, float]]:
+    texts = driver_texts(evidence)
+    evidence_ids = {e.get("node_id") for e in evidence}
+    thr = CONFIG.supervisor_alignment_threshold
+    out = []
+    for p in proposals:
+        if p.get("is_fallback"):
+            out.append(("APPROVED", "Circuit-breaker fallback: manual triage is always permitted.", 1.0))
+            continue
+        decision, reason, score = LocalSemanticSupervisor.evaluate_alignment(texts, p.get("action", ""), thr)
+        grounded = p.get("match_score", 0.0) if p.get("addresses_node_id") in evidence_ids else 0.0
+        if decision != "APPROVED" and grounded >= thr:
+            decision = "APPROVED"
+            reason = (f"Grounded playbook match to {p['addresses_node_id']} (trigger match {grounded:.2f}); "
+                      f"semantic score {score:.2f}.")
+            score = max(score, grounded)
+        out.append((decision, reason, score))
+    return out
+
+
+def llm_review(provider: str, anchor: Dict[str, Any], evidence: List[Dict[str, Any]],
+               proposals: List[Dict[str, Any]], use_cache: bool) -> Tuple[List[Tuple[str, str, float]], int, int, bool]:
+    causes = "\n".join(f"- [{e['node_id']}] {e['title']}: {e['content']}" for e in evidence[:5])
+    items = "\n".join(f"{i}. {p['action']}" for i, p in enumerate(proposals))
     prompt = (
-        f"You are the Omnision Chief Supervisor.\n"
-        f"Review this proposed action for logical alignment with the Causal Root Cause.\n"
-        f"Primary Cause: {primary_cause}\n"
-        f"Proposed Action: {proposed_action}\n\n"
-        f"You MUST respond ONLY in strictly valid JSON with exactly these two keys:\n"
-        f'  "decision": "APPROVED" or "REJECTED"\n'
-        f'  "reason": "String explaining why"\n'
-        f"Do NOT include markdown backticks or any other text.\n"
+        "You are the Omnision Chief Supervisor. For each proposed action decide whether it logically "
+        "neutralises the causal root cause of the KPI anomaly. Reject actions that address something else.\n"
+        f"KPI: {anchor.get('metric_name')} ({anchor.get('variance_pct', 0):+.2f}%)\n"
+        f"Causal evidence:\n{causes}\n\nProposed actions:\n{items}\n\n"
+        'Respond ONLY with raw JSON: {"reviews": [{"index": 0, "decision": "APPROVED" or "REJECTED", "reason": "..."}]}'
     )
-    
-    response = llm.invoke(prompt)
-    
+    parsed, tin, tout, hit = call_llm_json(provider, prompt, 0.0, ("supervisor",), use_cache)
+    reviews = parsed.get("reviews", []) if isinstance(parsed, dict) else parsed
+    by_idx = {int(r.get("index", -1)): r for r in reviews if isinstance(r, dict)}
+    local = local_review(evidence, proposals)
+    out = []
+    for i, p in enumerate(proposals):
+        r = by_idx.get(i)
+        if r is None:  # model skipped it -> deterministic check
+            out.append(local[i])
+            continue
+        decision = "APPROVED" if str(r.get("decision", "")).upper().startswith("APPROV") else "REJECTED"
+        out.append((decision, f"[LLM Supervisor] {r.get('reason', '')}", local[i][2]))
+    return out, tin, tout, hit
+
+
+def review_proposals(provider: str, anchor: Dict[str, Any], evidence: List[Dict[str, Any]],
+                     proposals: List[Dict[str, Any]], use_cache: bool = True) -> Dict[str, Any]:
+    """Returns {'verdicts': [(decision, reason, score)], tokens_input, tokens_output, cache_hits, llm_errors}."""
+    if provider in LOCAL_PROVIDERS:
+        return {"verdicts": local_review(evidence, proposals), "tokens_input": 0, "tokens_output": 0,
+                "cache_hits": 0, "llm_errors": []}
     try:
-        content = str(response.content).strip()
-        if content.startswith("```"):
-            lines = content.split("\n")
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines[-1].strip() == "```":
-                lines = lines[:-1]
-            content = "\n".join(lines).strip()
-            
-        result = json.loads(content)
-        decision = result.get("decision", "REJECTED")
-        reason = result.get("reason", "No reason provided by LLM.")
+        verdicts, tin, tout, hit = llm_review(provider, anchor, evidence, proposals, use_cache)
+        return {"verdicts": verdicts, "tokens_input": tin, "tokens_output": tout, "cache_hits": int(hit), "llm_errors": []}
     except Exception as e:
-        decision = "REJECTED"
-        reason = f"Supervisor parsing error: {str(e)}"
-        
-    tokens = state.get("tokens_consumed", 0) + 150
-        
-    return {
-        "final_status": decision,
-        "supervisor_feedback": reason,
-        "tokens_consumed": tokens
-    }
+        return {"verdicts": local_review(evidence, proposals), "tokens_input": 0, "tokens_output": 0, "cache_hits": 0,
+                "llm_errors": [f"Supervisor LLM ({provider}) unavailable, used local semantic check: {e}"]}
 
 
-
-
-
-
-
-def blue_sky_critic_node(state: AgentState) -> Dict[str, Any]:
-    """Layer 2.5: Unconstrained Critic specifically for Blue-Sky ideas. Does NOT reject or loop."""
-    blue_sky_proposals = state.get("blue_sky_proposals", [])
-    if not blue_sky_proposals:
-        return {}
-        
-    latest_bs = blue_sky_proposals[-1]
-    provider = state.get("bluesky_llm_provider", "mock")
-    
-    if provider in ["mock", "local"] or getattr(CONFIG, "prefer_local_tools", True):
-        decision = "EVALUATED"
-        reason = "Sandbox Evaluation: Idea is creatively unrestricted but poses high operational risk."
-    else:
-        from kpi_engine.governor.llm_factory import get_llm
-        llm = get_llm(provider=provider, temperature=0.2)
-        prompt = (
-            f"You are the Omnision Reality Checker.\n"
-            f"Review this unconstrained Blue-Sky action: {latest_bs.get('action')}\n"
-            f"Provide a brief, 1-2 sentence constructive critique on its feasibility and risk. Do not reject it, just critique it.\n"
-        )
-        try:
-            response = llm.invoke(prompt)
-            reason = str(response.content).strip()
-        except Exception as e:
-            reason = f"Critic parsing error: {str(e)}"
-    
-    return {
-        "blue_sky_critique": reason
-    }
+def critique_blue_sky(provider: str, proposal: Dict[str, Any], critic_note: str, use_cache: bool = True
+                      ) -> Tuple[str, int, int, List[str]]:
+    """Non-punishing Reality Checker critique (never rejects or loops)."""
+    cost = float(proposal.get("estimated_cost_usd", 0))
+    minutes = int(proposal.get("time_to_impact_minutes", 0))
+    base = (f"{critic_note} Estimated cost ${cost:,.0f} "
+            f"({'above' if cost > CONFIG.vp_approval_required_cost_usd else 'within'} the VP ceiling); "
+            f"time to impact {minutes / 60:.0f}h "
+            f"({'outside' if minutes > CONFIG.max_time_to_impact_minutes else 'inside'} the incident window). "
+            "Treat as a strategic option to validate in a shadow run, not as the incident fix.")
+    if provider in LOCAL_PROVIDERS:
+        return base, 0, 0, []
+    try:
+        prompt = (f"You are the Omnision Reality Checker. Critique this Blue-Sky idea in 1-2 sentences "
+                  f"(feasibility, risk). Do not reject it.\nIdea: {proposal.get('action')}\n"
+                  'Respond ONLY with raw JSON: {"critique": "..."}')
+        parsed, tin, tout, _ = call_llm_json(provider, prompt, 0.2, ("bluesky_critic",), use_cache)
+        return f"{parsed.get('critique', '').strip()} — {base}", tin, tout, []
+    except Exception as e:
+        return base, 0, 0, [f"Blue-Sky critic LLM ({provider}) unavailable: {e}"]

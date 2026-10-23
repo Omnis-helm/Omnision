@@ -79,6 +79,14 @@ class CounterfactualHierarchy:
         shock_weight = min(1.0, distance_outside / (2.0 * std_val))
         return True, round(shock_weight, 4)
 
+    @staticmethod
+    def calculate_metric_tree_share(anchor: AnchorNode, impact: float) -> float:
+        """Share of the anchor's observed delta explained by a node's quantified impact (same units)."""
+        anchor_delta = anchor.current_value - anchor.baseline_mean
+        if anchor_delta == 0 or impact == 0 or (impact > 0) != (anchor_delta > 0):
+            return 0.0
+        return min(1.0, abs(impact) / abs(anchor_delta))
+
     def evaluate_node_counterfactual(
         self,
         anchor: AnchorNode,
@@ -90,30 +98,43 @@ class CounterfactualHierarchy:
         """
         raw = node.raw_metric_values
 
-        # Check explicit zero or non-causal drop contribution
+        # Tier 1 Gold: explicit, deterministic contribution measured by the source system
         if "drop_contrib" in raw:
             contrib = raw["drop_contrib"]
             if contrib <= 0.0:
                 return 0.0, "Tier 1 (Gold) — Non-causal (0 contribution)", {"drop_contribution": 0.0}
             return min(1.0, max(0.0, contrib)), "Tier 1 (Gold) — Deterministic System Log", {"drop_contribution": contrib}
 
-        # Check Tier 1 Gold: Multivariate Metric Tree DAG
-        if "delta_p" in raw and "delta_v" in raw:
-            p_base = raw.get("p_base", 100.0)
-            v_base = raw.get("v_base", 3500.0)
-            delta_p = raw.get("delta_p", 0.0)
-            delta_v = raw.get("delta_v", 0.0)
+        # Tier 1 Gold: multivariate metric tree ΔR = PΔV + VΔP + ΔPΔV (interaction split 50/50, Shapley-fair)
+        if "delta_p" in raw or "delta_v" in raw:
+            p_base = raw.get("p_base", context.get("p_base", 100.0))
+            v_base = raw.get("v_base", context.get("v_base", 3500.0))
+            delta_p = raw.get("delta_p", context.get("delta_p", 0.0))
+            delta_v = raw.get("delta_v", context.get("delta_v", 0.0))
 
             dag_math = self.calculate_tier_1_multivariate_dag(p_base, v_base, delta_p, delta_v)
-            driver_type = node.metadata.get("driver_type")
-            if driver_type == "price_change":
-                w_cf = abs(dag_math["price_effect_usd"] + 0.5 * dag_math["interaction_effect_usd"]) / abs(dag_math["total_delta_r_usd"])
+            total = dag_math["total_delta_r_usd"]
+            if total == 0:
+                return 0.0, "Tier 1 (Gold) — Multivariate DAG", dag_math
+            if node.metadata.get("driver_type") == "price_change":
+                own = dag_math["price_effect_usd"] + 0.5 * dag_math["interaction_effect_usd"]
             else:
-                w_cf = abs(dag_math["volume_effect_usd"] + 0.5 * dag_math["interaction_effect_usd"]) / abs(dag_math["total_delta_r_usd"])
+                own = dag_math["volume_effect_usd"] + 0.5 * dag_math["interaction_effect_usd"]
+            w_cf = abs(own) / abs(total)
+            dag_math["node_attributed_usd"] = round(own, 2)
+            return min(1.0, max(0.0, w_cf)), "Tier 1 (Gold) — Multivariate DAG", dag_math
 
-            return min(1.0, max(0.1, w_cf)), "Tier 1 (Gold) — Multivariate DAG", dag_math
+        # Tier 1 Gold: metric-tree decomposition in the anchor's own units (e.g. margin points)
+        for key in ("anchor_impact", "margin_impact_pct"):
+            if key in raw:
+                share = self.calculate_metric_tree_share(anchor, raw[key])
+                return share, "Tier 1 (Gold) — Metric-Tree Decomposition", {
+                    "impact": raw[key],
+                    "anchor_delta": round(anchor.current_value - anchor.baseline_mean, 4),
+                    "explained_share": round(share, 4),
+                }
 
-        # Check Tier 2 Silver: Parallel Cohort DiD if available
+        # Tier 2 Silver: Difference-in-Differences against a parallel control cohort
         if "control_pre" in context and "control_post" in context:
             did_effect, did_weight = self.calculate_tier_2_did(
                 affected_pre=anchor.baseline_mean,
@@ -123,10 +144,12 @@ class CounterfactualHierarchy:
             )
             return did_weight, "Tier 2 (Silver) — Difference-in-Differences", {"did_effect": did_effect}
 
-        # Check Tier 3 Bronze: CI Bands
+        # Tier 3 Bronze: the anomaly is real (CI band pierced) but this node's share is unquantified,
+        # so it only receives half of the shock weight.
         is_breach, ci_weight = self.calculate_tier_3_ci_band(
             actual_val=anchor.current_value,
             mean_val=anchor.baseline_mean,
             std_val=anchor.baseline_std,
         )
-        return ci_weight, "Tier 3 (Bronze) — Confidence Interval Bands", {"ci_breach": is_breach}
+        return round(0.5 * ci_weight, 4), "Tier 3 (Bronze) — Confidence Interval Bands (node impact unquantified)", {
+            "ci_breach": is_breach, "shock_weight": ci_weight}

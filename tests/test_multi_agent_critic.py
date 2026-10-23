@@ -66,3 +66,32 @@ def test_the_critic_3_point_feasibility_matrix():
     assert discarded[0].action_id == "ACT-CHAL-501"
     assert discarded[0].approval_status == "DISCARDED"
     assert "No active contract" in discarded[0].critic_verdict
+
+
+def test_critic_rejects_forbidden_and_slow_actions():
+    store = PrescriptiveLayersStore()
+    critic = TheCritic(store)
+    driver = "Payment Gateway API Timeout (Stripe v4.1), 8000ms latency"
+    cands = [
+        SolutionCandidate(action_id="A", action="rm -rf /var/lib/stripe and restart gateway", source_layer="LLM"),
+        SolutionCandidate(action_id="B", action="Roll back Stripe gateway after the quarterly review",
+                          source_layer="LLM", time_to_impact_minutes=5000),
+    ]
+    passed, discarded = critic.evaluate_candidates(None, driver, cands)
+    assert not passed
+    assert "Security violation" in discarded[0].critic_verdict
+    assert "Time to impact" in discarded[1].critic_verdict
+
+
+def test_grounded_suggester_matches_each_scenario_driver():
+    from kpi_engine.suggester.dual_channel import DualChannelSuggester
+    sugg = DualChannelSuggester(PrescriptiveLayersStore())
+    cases = {
+        "Payment Gateway API Timeout (Stripe v4.1), 8000ms latency": "ACT-PM-2291",
+        "Aggressive price discount applied across Electronics catalog": "ACT-PB-PRICE-17",
+        "FaceID / TouchID biometric auth failure on iOS 1-click checkout flow": "ACT-PB-MOB-311",
+        "Confidential acquisition of FastPay incurring $850,000 non-recurring advisor fee": "ACT-FIN-ACC-07",
+    }
+    for text, expected in cases.items():
+        got = [c.action_id for c in sugg.run_channel_a_grounded(None, [{"node_id": "N", "title": "", "content": text}])]
+        assert got and got[0] == expected, (text, got)

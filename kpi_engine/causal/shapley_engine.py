@@ -49,34 +49,20 @@ class ShapleyCausalEngine:
         return shapley_values
 
     @classmethod
-    def evaluate_with_global_model(
-        cls,
-        global_model, # GlobalKPIModel instance
-        anomaly_row, # pd.DataFrame single row
-    ) -> Dict[str, Any]:
-        """Runs the true SHAP TreeExplainer against the XGBoost global model."""
+    def evaluate_with_global_model(cls, global_model, anomaly_row) -> Dict[str, Any]:
+        """Explains the anomaly row with exact Shapley values on the trained global model.
+
+        Returns shap_values (in target units, e.g. USD), relative_attribution (signed share of total
+        |SHAP|), base_value, prediction and model metadata. Empty dict if the model is untrained.
+        """
         from kpi_engine.ml.shap_explainer import LocalShapExplainer
-        
+
         if not global_model or not global_model.is_trained():
             return {}
-            
         explainer = LocalShapExplainer(global_model.model, global_model.X_background)
-        attributions = explainer.explain_anomaly(anomaly_row)
-        
-        # We also create a mapped dictionary for our specific features
-        # so the rest of the code works cleanly.
-        shap_vals = {
-            "competitor_promotion": attributions.get("competitor_price", 0.0),
-            "weather_heatwave": attributions.get("weather_severity", 0.0),
-            "server_latency": attributions.get("server_latency", 0.0),
-            "marketing_spend": attributions.get("marketing_spend", 0.0),
-        }
-        
-        return {
-            "shapley_values": shap_vals,
-            "relative_attribution_pct": {
-                k: round(v * 100.0, 2) for k, v in shap_vals.items()
-            },
-            "formula": "XGBoost TreeExplainer SHAP Values",
-            "raw_attributions": attributions
-        }
+        result = explainer.explain_anomaly(anomaly_row)
+        result["model_type"] = getattr(global_model, "model_type", "unknown")
+        result["train_r2"] = getattr(global_model, "train_r2", None)
+        result["relative_attribution_pct"] = {k: round(v * 100.0, 2) for k, v in result["relative_attribution"].items()}
+        result["formula"] = "phi_i = sum_S |S|!(N-|S|-1)!/N! [v(S u {i}) - v(S)]"
+        return result

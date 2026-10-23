@@ -1,8 +1,15 @@
 """
 Master Composite Causal Scorer & Context Pre-Sorter (§2.5, §2.6, §5.4, §6.1)
+
+W(A*, n_i) = CR * CI
+  CR: contextual relevance (temporal, entity, semantic)
+  CI: delta*Wsnr + epsilon*Wcf, collapsing to 0 when the counterfactual proves zero contribution
+
+Historical precedents retrieved from institutional memory are scored separately: they are
+supporting context (or a noise signature), never a causal driver of today's anomaly.
 """
 
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Optional, Set
 
 from kpi_engine.data.models import AnchorNode, CandidateNode, CandidateNodeType
 from kpi_engine.causal.contextual_relevance import ContextualRelevanceScorer
@@ -10,21 +17,53 @@ from kpi_engine.causal.counterfactual_tiers import CounterfactualHierarchy
 from kpi_engine.causal.shapley_engine import ShapleyCausalEngine
 from kpi_engine.config import CONFIG
 
+HISTORICAL_TYPES = (CandidateNodeType.HISTORICAL_PRECEDENT, CandidateNodeType.HISTORICAL_NOISE)
+
+# driver_type on evidence nodes -> feature name in the global ML model
+AMBIENT_FEATURE_MAP = {
+    "ambient_competitor": "competitor_price",
+    "ambient_weather": "weather_severity",
+    "ambient_latency": "server_latency",
+    "ambient_marketing": "marketing_spend",
+}
+
+ScoredNode = Tuple[CandidateNode, float, float, float, str, Dict[str, Any]]
+
+
+def is_historical(node: CandidateNode) -> bool:
+    return node.node_type in HISTORICAL_TYPES
+
 
 class CompositeCausalScorer:
     """Calculates multiplicative composite causal weights and sorts context to prevent 'Lost in the Middle'."""
 
-    def __init__(self, config=CONFIG):
+    def __init__(self, config=CONFIG, cr_scorer: Optional[ContextualRelevanceScorer] = None):
         self.config = config
-        self.cr_scorer = ContextualRelevanceScorer(config)
+        self.cr_scorer = cr_scorer or ContextualRelevanceScorer(config)
         self.cf_hierarchy = CounterfactualHierarchy()
         self.shap_engine = ShapleyCausalEngine()
 
-    def compute_snr_weight(self, anchor: AnchorNode) -> float:
-        """Signal-to-Noise Ratio (Wsnr) normalized against 30-day Z-score."""
-        z = anchor.z_score
-        # Z > 5.0 => shock 1.0, Z < 2.0 => noise < 0.40
-        return min(1.0, max(0.0, z / 5.0))
+    @staticmethod
+    def compute_snr_weight(anchor: AnchorNode) -> float:
+        """Signal-to-Noise Ratio (Wsnr): Z/5 clipped to [0, 1] (Z >= 5 is a full shock)."""
+        return min(1.0, max(0.0, anchor.z_score / 5.0))
+
+    def _score_historical(self, anchor: AnchorNode, node: CandidateNode, w_snr: float):
+        sim = float(node.metadata.get("similarity_score", 0.0))
+        cross = node.metadata.get("is_cross_regional", False)
+        if node.node_type == CandidateNodeType.HISTORICAL_NOISE:
+            w_cf = 0.0 if cross else 1.0
+            tier = ("Context — Cross-Regional Noise Signature (ignored)" if cross
+                    else "Context — Known Noise Signature (false-alarm check)")
+        else:
+            w_cf = self.config.history_precedent_wcf_cross_region if cross else self.config.history_precedent_wcf_local
+            tier = ("Context — Cross-Regional Historical Precedent" if cross
+                    else "Context — Verified Historical Precedent (Vector-RAG)")
+        cr = sim
+        ci = 0.0 if w_cf == 0 else min(1.0, self.config.delta_wsnr * w_snr + self.config.epsilon_wcf * w_cf)
+        details = {"vector_similarity": sim, "is_cross_regional": cross, "historical_id": node.metadata.get("historical_id"),
+                   "is_historical": True, "is_noise": node.node_type == CandidateNodeType.HISTORICAL_NOISE}
+        return cr, ci, tier, details
 
     def score_candidate_nodes(
         self,
@@ -33,87 +72,52 @@ class CompositeCausalScorer:
         context: Dict[str, Any],
         global_model=None,
         anomaly_row=None,
-    ) -> List[Tuple[CandidateNode, float, float, float, str, Dict[str, Any]]]:
-        """Calculates W(A*, n_i) = CR * CI for all candidate nodes.
-        Returns:
-            List of (node, composite_W, contextual_relevance, causal_impact, tier_str, details)
-            sorted descending by composite_W.
-        """
-        scored_results = []
+        demoted_node_ids: Optional[Set[str]] = None,
+    ) -> List[ScoredNode]:
+        """Returns (node, W, CR, CI, tier, details) sorted descending by W, causal drivers before history."""
+        demoted_node_ids = demoted_node_ids or set()
+        scored_results: List[ScoredNode] = []
         w_snr = self.compute_snr_weight(anchor)
 
-        # Check if scenario has ambient variables needing SHAP
-        shap_ambient_data = None
-        has_ambient = any(n.metadata.get("driver_type") in ["ambient_competitor", "ambient_weather"] for n in nodes)
-        if has_ambient and global_model and anomaly_row is not None:
-            shap_ambient_data = self.shap_engine.evaluate_with_global_model(
-                global_model=global_model,
-                anomaly_row=anomaly_row
-            )
+        # SHAP attribution for ambient variables (computed once per run)
+        shap_data = None
+        has_ambient = any(n.metadata.get("driver_type") in AMBIENT_FEATURE_MAP for n in nodes)
+        if has_ambient and global_model is not None and anomaly_row is not None:
+            shap_data = self.shap_engine.evaluate_with_global_model(global_model, anomaly_row)
+            context["shap_attribution"] = shap_data
+        anomaly_sign = -1.0 if anchor.variance_pct < 0 else 1.0
 
         for node in nodes:
-            # 1. Compute Contextual Relevance (The Gatekeeper)
-            if node.node_type in [CandidateNodeType.HISTORICAL_PRECEDENT, CandidateNodeType.HISTORICAL_NOISE]:
-                # Bypass standard temporal checks, rely on FAISS vector similarity
-                sim_score = float(node.dimensions.get("similarity", 1.0))
-                # Map FAISS distance to a 0.7 - 0.99 CR score
-                cr = max(0.7, 1.0 - (sim_score * 0.2)) 
-            else:
-                cr = self.cr_scorer.calculate_cr(anchor, node)
+            if is_historical(node):
+                cr, ci, tier_str, cf_details = self._score_historical(anchor, node, w_snr)
+                scored_results.append((node, round(cr * ci, 4), round(cr, 4), round(ci, 4), tier_str, cf_details))
+                continue
 
-            # 2. Compute Counterfactual Impact (Wcf)
+            cr_parts = self.cr_scorer.calculate_cr_components(anchor, node)
+            cr = cr_parts["CR"]
+
             driver_type = node.metadata.get("driver_type")
-            is_cross_regional = node.metadata.get("is_cross_regional", False)
-            
-            if node.node_type == CandidateNodeType.HISTORICAL_PRECEDENT:
-                if is_cross_regional:
-                    w_cf = 0.60 # Tier 2 (Silver) Hypothesis
-                    tier_str = f"Tier 2 (Silver) — Cross-Regional Hypothesis (from {node.metadata.get('historical_region')})"
-                else:
-                    w_cf = 0.95 # Highly causal due to being a verified local past incident
-                    tier_str = "Tier 0 (Platinum) — Verified Historical Precedent via Vector-RAG"
-                cf_details = {"vector_similarity": node.dimensions.get("similarity"), "is_cross_regional": is_cross_regional}
-                
-            elif node.node_type == CandidateNodeType.HISTORICAL_NOISE:
-                if is_cross_regional:
-                    w_cf = 0.40 # Drops below 0.65 prune threshold! Forces local investigation.
-                    tier_str = f"Discarded — Cross-Regional Noise Hypothesis (from {node.metadata.get('historical_region')})"
-                else:
-                    w_cf = 1.00 # Force it to survive the brakes so LLM explicitly sees it's noise
-                    tier_str = "Tier 0 (Platinum) — Verified Historical NOISE (False Alarm)"
-                cf_details = {"vector_similarity": node.dimensions.get("similarity"), "is_noise": True, "is_cross_regional": is_cross_regional}
-            elif driver_type in ["ambient_competitor", "ambient_weather"] and shap_ambient_data:
-                feat_key = "competitor_promotion" if driver_type == "ambient_competitor" else "weather_heatwave"
-                w_cf = shap_ambient_data["shapley_values"].get(feat_key, 0.20)
-                tier_str = "Tier 3 (Bronze) — SHAP Cooperative Game"
-                cf_details = {"shapley_attribution": shap_ambient_data}
+            if driver_type in AMBIENT_FEATURE_MAP and shap_data:
+                feat = AMBIENT_FEATURE_MAP[driver_type]
+                signed_share = shap_data["relative_attribution"].get(feat, 0.0)
+                # Only a feature pushing the KPI in the anomaly's direction explains the anomaly
+                w_cf = abs(signed_share) if signed_share * anomaly_sign > 0 else 0.0
+                tier_str = "Tier 3 (Bronze) — SHAP Cooperative Game (global model)"
+                cf_details = {"feature": feat, "signed_share": round(signed_share, 4),
+                              "shap_value": shap_data["shap_values"].get(feat), "model": shap_data.get("model_type")}
             else:
-                w_cf, tier_str, cf_details = self.cf_hierarchy.evaluate_node_counterfactual(
-                    anchor, node, context
-                )
+                w_cf, tier_str, cf_details = self.cf_hierarchy.evaluate_node_counterfactual(anchor, node, context)
 
-            # 3. Blended Causal Impact: CI = delta*Wsnr + epsilon*Wcf
-            # If counterfactual is 0 (i.e. proven zero damage), CI collapses to 0
-            if w_cf == 0.0:
-                ci = 0.0
-            else:
-                ci = self.config.delta_wsnr * w_snr + self.config.epsilon_wcf * w_cf
-                ci = min(1.0, max(0.0, ci))
-
-            # 4. Master Multiplicative Formula: W = CR * CI
-            # (Multiplication ensures a node must have BOTH contextual match and mathematical causal impact!)
+            ci = 0.0 if w_cf == 0.0 else min(1.0, max(0.0, self.config.delta_wsnr * w_snr + self.config.epsilon_wcf * w_cf))
             composite_w = cr * ci
 
-            scored_results.append((
-                node,
-                round(composite_w, 4),
-                round(cr, 4),
-                round(ci, 4),
-                tier_str,
-                cf_details,
-            ))
+            cf_details = {**cf_details, "w_cf": round(w_cf, 4), "w_snr": round(w_snr, 4), **cr_parts}
+            if node.node_id in demoted_node_ids:
+                composite_w *= self.config.demotion_penalty
+                cf_details["human_demoted"] = True
+                tier_str += " · demoted by analyst"
 
-        # Context Sorting (§6.1): Sort descending by composite weight W
-        # Forces LLM's attention mechanism to anchor on strongest mathematical evidence first
-        sorted_results = sorted(scored_results, key=lambda item: item[1], reverse=True)
-        return sorted_results
+            scored_results.append((node, round(composite_w, 4), round(cr, 4), round(ci, 4), tier_str, cf_details))
+
+        # Context sorting (§6.1): causal drivers first, by W descending; history after.
+        return sorted(scored_results, key=lambda item: (is_historical(item[0]), -item[1]))
